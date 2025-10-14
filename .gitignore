@@ -40,7 +40,6 @@ Thumbs.db
 # MongoDB dumpy
 *.bson
 *.mongodb
-*.json
 
 # Caches
 .npm/
