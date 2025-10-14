@@ -8,7 +8,7 @@ package-lock.json
 yarn.lock
 .pnpm-debug.log
 
-# Build výstupy
+# Build outputs
 dist/
 build/
 .cache/
@@ -25,19 +25,19 @@ out/
 # Test coverage
 coverage/
 
-# IDE / OS soubory
+# IDE / OS files
 .DS_Store
 Thumbs.db
 .vscode/
 .idea/
 
-# Lokální data
+# Local data
 .env
 .env.test
 .env.development
 .env.production
 
-# MongoDB dumpy
+# MongoDB dumps
 *.bson
 *.mongodb
 
