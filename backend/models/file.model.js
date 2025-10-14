@@ -47,10 +47,6 @@ const fileSchema = new mongoose.Schema({
         type: Date, 
         default: null 
     },
-    encrypted: { 
-        type: Boolean, 
-        default: false 
-    },
     uploaded_at: { 
         type: Date, 
         default: Date.now 
