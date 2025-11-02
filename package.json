@@ -3,6 +3,7 @@
   "version": "1.0.0",
   "description": "File sharing web app for school project",
   "main": "server.js",
+  "type": "module",
   "scripts": {
     "test": "echo \"Error: no test specified\" && exit 1",
     "dev": "cross-env NODE_ENV=development nodemon ./backend/server.js",
