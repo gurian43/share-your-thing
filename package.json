@@ -23,6 +23,7 @@
   "homepage": "https://github.com/gurian43/share-your-thing#readme",
   "dependencies": {
     "bcrypt": "^6.0.0",
+    "connect-mongo": "^5.1.0",
     "cookie-parser": "^1.4.7",
     "cors": "^2.8.5",
     "cross-env": "^10.1.0",
