@@ -13,10 +13,10 @@ export const createTransporter = () => {
     console.log('Email transporter created');
 }
 
-export const sendNotificationEmail = async (code) => {
+export const sendNotificationEmail = async (user_email, code) => {
     const mailOptions = {
         from: process.env.EMAIL_USER,
-        to: process.env.EMAIL_TO,
+        to: user_email,
         subject: `Your Verification Code: ${code}`,
         html: `
             <h1>Your Verification Code</h1>

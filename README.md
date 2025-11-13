@@ -5,8 +5,12 @@ File sharing web app for school project
 ```.env
 PORT={backend_port}
 MONGODB_URI={your_uri}
+
 SESSION_SECRET={your_session_secret}
 RECAPTCHA_PRIVATE_SECRET={your_recaptcha_private_secret}
+
+EMAIL_USER={email_name}
+EMAIL_PASS={email_password}
 ```
 ## Installation and dev env
 

@@ -2,8 +2,11 @@ import dotenv from 'dotenv';
 import express from 'express';
 import cors from 'cors';
 import MongoStore from 'connect-mongo';
+import session from 'express-session';
 
 import connectToDatabase from './config/db.js';
+
+import userRoutes from './routes/user.route.js';
 
 dotenv.config();
 
@@ -21,8 +24,10 @@ app.use(session({
     resave: false,
     saveUninitialized: false,
     store: MongoStore.create({
-        mongoUrl: process.env.MONGO_URI,
+        mongoUrl: process.env.MONGODB_URI,
+        databaseName: "share-your-thing",
         collectionName: "sessions"
+        
     }),
     cookie: {
         httpOnly: true,
@@ -31,8 +36,13 @@ app.use(session({
     }
 }));
 
+app.use('/api/user', userRoutes);
 
 app.listen(PORT, () => {
     connectToDatabase();
     console.log(`Server is running on port ${PORT}`);
+});
+
+app.get('/', (req, res) => {
+    res.send('Share Your Thing API is running');
 });
