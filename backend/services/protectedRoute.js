@@ -5,3 +5,5 @@ function requireAuth(req, res, next) {
         res.status(401).json({ message: "Unauthorized" });
     }
 }
+
+export default requireAuth;

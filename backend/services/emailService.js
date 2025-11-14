@@ -17,11 +17,11 @@ export const sendNotificationEmail = async (user_email, code) => {
     const mailOptions = {
         from: process.env.EMAIL_USER,
         to: user_email,
-        subject: `Your Verification Code: ${code}`,
+        subject: `Please verify your account for Share Your Thing`,
         html: `
-            <h1>Your Verification Code</h1>
-            <p>Your verification code is: <strong>${code}</strong></p>
-            <p>Please use this code to complete your verification process.</p>
+            <h1>Your Verification Link</h1>
+            <p>${process.env.MODE == "development" ? "http://localhost:3000" : "https://rocnikovka.gurian.live"}/api/user/activate/${code}</p>
+            <p>Please use this link to complete your verification process.</p>
         `
     };
 

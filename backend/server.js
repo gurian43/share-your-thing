@@ -5,6 +5,7 @@ import MongoStore from 'connect-mongo';
 import session from 'express-session';
 
 import connectToDatabase from './config/db.js';
+import { createTransporter } from './services/emailService.js';
 
 import userRoutes from './routes/user.route.js';
 
@@ -46,3 +47,5 @@ app.listen(PORT, () => {
 app.get('/', (req, res) => {
     res.send('Share Your Thing API is running');
 });
+
+createTransporter();
