@@ -1,150 +1,147 @@
-import React, { useState } from 'react'
+import React, { useEffect, useState } from 'react'
 import {
-  Box,
-  Container,
-  Heading,
-  VStack,
-  Input,
-  Button,
-  Text,
-  Link as ChakraLink,
-  Flex,
-  Spacer,
+    Box,
+    Container,
+    Heading,
+    VStack,
+    Input,
+    Button,
+    Text,
+    Link as ChakraLink,
+    Fieldset,
+    Field
 } from '@chakra-ui/react'
 import { toaster } from '../components/ui/toaster.jsx'
 import { useNavigate } from 'react-router-dom'
+import Header from '../components/Header.jsx'
+import { useAuth } from '../context/AuthContext.jsx'
+import { PasswordInput } from '../components/ui/password-input.jsx'
 
 const LoginPage = () => {
-  const navigate = useNavigate()
-  const [formData, setFormData] = useState({
-    email: '',
-    password: '',
-  })
-  const [loading, setLoading] = useState(false)
+    const navigate = useNavigate()
+    const { user, login } = useAuth();
+    const [password, setPassword] = useState('');
+    const [email, setEmail] = useState('');
+    const [loading, setLoading] = useState(false);
 
-  const handleChange = (e) => {
-    const { name, value } = e.target
-    setFormData(prev => ({
-      ...prev,
-      [name]: value,
-    }))
-  }
-
-  const handleSubmit = async (e) => {
-    e.preventDefault()
-    
-    setLoading(true)
-    try {
-      // TODO: Add your API call here
-      toaster({
-        title: 'Success',
-        description: 'Logged in successfully',
-        status: 'success',
-        duration: 3000,
-        isClosable: true,
-      })
-      navigate('/dashboard')
-    } catch (error) {
-      toaster({
-        title: 'Error',
-        description: error.message,
-        status: 'error',
-        duration: 3000,
-        isClosable: true,
-      })
-    } finally {
-      setLoading(false)
+    const handlePasswordChange = (value) => {
+        setPassword(value);
     }
-  }
+
+    const handleEmailChange = (value) => {
+        setEmail(value);
+    }
+
+    const handleSubmit = async () => {
+        setLoading(true);
+        const { success, message } = await login(email, password);
+        if (success) {
+            toaster.create({
+                title: message,
+                type: 'success',
+                duration: 3000,
+                isClosable: true,
+            });
+            navigate('/dashboard');
+            setLoading(false);
+        } else {
+            toaster.create({
+                title: message,
+                type: 'error',
+                duration: 3000,
+                isClosable: true,
+            });
+            setLoading(false);
+            setPassword('');
+        }
+    }
+
+    useEffect(() => {
+        if(user) {
+            navigate('/dashboard');
+        }
+        document.title = "Login - Share Your Thing"
+    }, [navigate, user])
 
   return (
     <Box minH="100vh" bg="gray.900">
-      {/* Header */}
-      <Box bg="gray.800" py={4} px={8} boxShadow="md" borderBottom="2px" borderColor="purple.500">
-        <Flex align="center" maxW="1200px" mx="auto">
-          <Heading size="lg" color="purple.300" cursor="pointer" onClick={() => navigate('/')}>
-            Share Your Thing
-          </Heading>
-          <Spacer />
-        </Flex>
-      </Box>
 
-      {/* Login Form */}
-      <Container maxW="500px" centerContent py={20}>
-        <VStack spacing={8} w="full">
-          <Heading 
-            as="h1" 
-            size="2xl" 
-            color="purple.300"
-            textAlign="center"
-          >
-            Sign In
-          </Heading>
+        <Header variant={"none"} />
 
-          <Box w="full" bg="gray.800" p={8} borderRadius="lg" boxShadow="lg" borderTop="2px" borderColor="purple.500">
-            <form onSubmit={handleSubmit}>
-              <VStack spacing={6}>
-                <VStack w="full" align="start">
-                  <Text color="gray.300" fontSize="sm" fontWeight="500">Email *</Text>
-                  <Input
-                    name="email"
-                    type="email"
-                    placeholder="Enter your email"
-                    bg="gray.700"
-                    color="white"
-                    borderColor="purple.500"
-                    _focus={{ borderColor: 'purple.400', boxShadow: '0 0 0 1px rgba(168, 85, 247, 0.3)' }}
-                    value={formData.email}
-                    onChange={handleChange}
-                  />
-                </VStack>
+        <Container maxW="500px" centerContent py={20}>
+            <VStack spacing={8} w="full">
+            <Heading 
+                as="h1" 
+                size="2xl" 
+                color="purple.300"
+                textAlign="center"
+            >
+                Sign In
+            </Heading>
 
-                <VStack w="full" align="start">
-                  <Text color="gray.300" fontSize="sm" fontWeight="500">Password *</Text>
-                  <Input
-                    name="password"
-                    type="password"
-                    placeholder="Enter your password"
-                    bg="gray.700"
-                    color="white"
-                    borderColor="purple.500"
-                    _focus={{ borderColor: 'purple.400', boxShadow: '0 0 0 1px rgba(168, 85, 247, 0.3)' }}
-                    value={formData.password}
-                    onChange={handleChange}
-                  />
-                </VStack>
-
-                <Button
-                  w="full"
-                  bg="purple.600"
-                  color="white"
-                  size="lg"
-                  type="submit"
-                  isLoading={loading}
-                  _hover={{
-                    bg: 'purple.500',
-                    boxShadow: '0 0 20px rgba(168, 85, 247, 0.5)',
-                  }}
+            <Box w="full" bg="gray.800" p={8} borderRadius="lg" boxShadow="lg" borderTop="2px" borderColor="purple.500">
+                <Fieldset.Root>
+                    <Fieldset.Content>
+                        <Field.Root>
+                            <Field.Label color="gray.300">
+                                Email
+                            </Field.Label>
+                            <Input
+                                type="email"
+                                value={email}
+                                onChange={(e) => {handleEmailChange(e.target.value)}}
+                                placeholder="Enter your email"
+                                bg="gray.700"
+                                color="white"
+                                _placeholder={{ color: 'gray.400' }}
+                                required
+                            />
+                        </Field.Root>
+                        <Field.Root>
+                            <Field.Label color="gray.300">
+                                Password
+                            </Field.Label>
+                            <PasswordInput
+                                value={password}
+                                onChange={(e) => {handlePasswordChange(e.target.value)}}
+                                placeholder="Enter your password"
+                                bg="gray.700"
+                                color="white"
+                                _placeholder={{ color: 'gray.400' }}
+                                required
+                            />
+                        </Field.Root>
+                        <Button 
+                            type="submit"
+                            w="full"
+                            bg="purple.600"
+                            color="white"
+                            loading={loading}
+                            loadingText="Signing In"
+                            _hover={{ 
+                                bg: 'purple.500',
+                                boxShadow: '0 0 20px rgba(168, 85, 247, 0.6)'
+                            }}
+                            onClick={handleSubmit}
+                        >
+                            Sign In
+                        </Button>
+                    </Fieldset.Content>
+                </Fieldset.Root>
+                <Text color="gray.400" textAlign="center" mt={6}>
+                Don't have an account?{' '}
+                <ChakraLink 
+                    color="purple.400" 
+                    onClick={() => navigate('/register')}
+                    cursor="pointer"
+                    _hover={{ color: 'purple.300' }}
                 >
-                  Sign In
-                </Button>
-              </VStack>
-            </form>
-
-            <Text color="gray.400" textAlign="center" mt={6}>
-              Don't have an account?{' '}
-              <ChakraLink 
-                color="purple.400" 
-                onClick={() => navigate('/register')}
-                cursor="pointer"
-                _hover={{ color: 'purple.300' }}
-              >
-                Sign Up
-              </ChakraLink>
-            </Text>
-          </Box>
-        </VStack>
-      </Container>
+                    Sign Up
+                </ChakraLink>
+                </Text>
+            </Box>
+            </VStack>
+        </Container>
     </Box>
   )
 }
