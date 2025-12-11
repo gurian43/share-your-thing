@@ -1,4 +1,4 @@
-import { Box, Button, HStack, Image, Spacer, Avatar, AvatarGroup, Menu, Portal, Tabs } from '@chakra-ui/react'
+import { Box, Button, HStack, Image, Avatar, AvatarGroup, Menu, Portal, Tabs } from '@chakra-ui/react'
 import { useLocation, useNavigate } from 'react-router-dom'
 import logotext from '../assets/logo-text-white.webp'
 
@@ -21,7 +21,7 @@ const Header = ({variant}) => {
                 duration: 3000,
                 isClosable: true,
             })
-            navigate('/')
+            navigate('/');
         } else {
             toaster.create({
                 title: message,
@@ -82,6 +82,15 @@ const Header = ({variant}) => {
                                     Profile
                                 </Menu.Item>
                                 <Menu.Item 
+                                    value="account"
+                                    color="white"
+                                    cursor="pointer"
+                                    onClick={() => navigate('/account')}
+                                    _hover={{ bg: 'gray.700' }}
+                                >
+                                    Account Settings
+                                </Menu.Item>
+                                <Menu.Item 
                                     value="logout"
                                     onClick={handleLogout}
                                     color="red.300"
@@ -101,7 +110,7 @@ const Header = ({variant}) => {
                     <Tabs.List>
                         <Tabs.Trigger value="home" color="white">Home</Tabs.Trigger>
                         <Tabs.Trigger value="dashboard" disabled color="white">Dashboard</Tabs.Trigger>
-                        <Tabs.Trigger value="browse" disabled color="white">Browse</Tabs.Trigger>
+                        <Tabs.Trigger value="browse" color="white">Browse</Tabs.Trigger>
                     </Tabs.List>
                 </Tabs.Root>
             )

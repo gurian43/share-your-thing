@@ -16,6 +16,7 @@ import { useNavigate } from 'react-router-dom'
 import Header from '../components/Header.jsx'
 import { useAuth } from '../context/AuthContext.jsx'
 import { PasswordInput } from '../components/ui/password-input.jsx'
+import Footer from '../components/Footer.jsx'
 
 const LoginPage = () => {
     const navigate = useNavigate()
@@ -64,7 +65,7 @@ const LoginPage = () => {
     }, [navigate, user])
 
   return (
-    <Box minH="100vh" bg="gray.900">
+    <Box minH="100vh" bg="gray.900" display="flex" flexDirection="column">
 
         <Header variant={"none"} />
 
@@ -142,6 +143,8 @@ const LoginPage = () => {
             </Box>
             </VStack>
         </Container>
+
+        <Footer />
     </Box>
   )
 }

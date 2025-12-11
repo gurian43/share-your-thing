@@ -11,6 +11,7 @@ import BrowsePage from './pages/BrowsePage.jsx'
 import ProfilePage from './pages/ProfilePage.jsx'
 import FaqPage from './pages/FaqPage.jsx'
 import PrivacyPage from './pages/PrivacyPage.jsx'
+import AccountPage from './pages/AccountPage.jsx'
 
 
 function App() {
@@ -30,6 +31,11 @@ function App() {
                 <Route path="/profile" element={
                     <ProtectedRoute>
                         <ProfilePage />
+                    </ProtectedRoute>
+                } />
+                <Route path="/account" element={
+                    <ProtectedRoute>
+                        <AccountPage />
                     </ProtectedRoute>
                 } />
                 <Route path="/faq" element={<FaqPage />} />

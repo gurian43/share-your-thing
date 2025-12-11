@@ -19,6 +19,7 @@ import { useNavigate } from 'react-router-dom'
 import Header from '../components/Header'
 import { useAuth } from '../context/AuthContext'
 import { PasswordInput } from '../components/ui/password-input'
+import Footer from '../components/Footer'
 
 const RegisterPage = () => {
     const { user } = useAuth();
@@ -127,10 +128,10 @@ const RegisterPage = () => {
     }
 
   return (
-    <Box minH="100vh" bg="gray.900">
+    <Box minH="100vh" bg="gray.900" display="flex" flexDirection="column">
         <Header variant={"none"} />
 
-        <Container maxW="500px" centerContent py={20}>
+        <Container maxW="500px" centerContent mt="auto">
             <VStack spacing={8} w="full">
                 <Heading 
                     as="h1" 
@@ -274,6 +275,8 @@ const RegisterPage = () => {
                 </Box>
             </VStack>
         </Container>
+
+        <Footer />
     </Box>
   )
 }
