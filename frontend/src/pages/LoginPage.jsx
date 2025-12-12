@@ -17,6 +17,7 @@ import Header from '../components/Header.jsx'
 import { useAuth } from '../context/AuthContext.jsx'
 import { PasswordInput } from '../components/ui/password-input.jsx'
 import Footer from '../components/Footer.jsx'
+import { Turnstile } from '@marsidev/react-turnstile'
 
 const LoginPage = () => {
     const navigate = useNavigate()
@@ -24,6 +25,7 @@ const LoginPage = () => {
     const [password, setPassword] = useState('');
     const [email, setEmail] = useState('');
     const [loading, setLoading] = useState(false);
+    const [captchaToken, setCaptchaToken] = useState(null);
 
     const handlePasswordChange = (value) => {
         setPassword(value);
@@ -34,8 +36,18 @@ const LoginPage = () => {
     }
 
     const handleSubmit = async () => {
+        if (!captchaToken) {
+            toaster.create({
+                title: 'Please complete the captcha.',
+                type: 'warning',
+                duration: 3000,
+                isClosable: true,
+            });
+            return;
+        }
+
         setLoading(true);
-        const { success, message } = await login(email, password);
+        const { success, message } = await login(email, password, captchaToken);
         if (success) {
             toaster.create({
                 title: message,
@@ -112,13 +124,21 @@ const LoginPage = () => {
                                 required
                             />
                         </Field.Root>
+                        <Turnstile
+                            siteKey={import.meta.env.VITE_TURNSTILE_SITE_KEY}
+                            onSuccess={(token) => setCaptchaToken(token)}
+                            onError={() => setCaptchaToken(null)}
+                            onExpire={() => setCaptchaToken(null)}
+                            options={{ theme: 'dark' }}
+                        />
                         <Button 
                             type="submit"
                             w="full"
                             bg="purple.600"
                             color="white"
-                            loading={loading}
+                            isLoading={loading}
                             loadingText="Signing In"
+                            isDisabled={!captchaToken}
                             _hover={{ 
                                 bg: 'purple.500',
                                 boxShadow: '0 0 20px rgba(168, 85, 247, 0.6)'

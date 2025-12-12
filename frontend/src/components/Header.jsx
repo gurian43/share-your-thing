@@ -1,4 +1,4 @@
-import { Box, Button, HStack, Image, Avatar, AvatarGroup, Menu, Portal, Tabs } from '@chakra-ui/react'
+import { Box, Button, HStack, Image, Avatar, AvatarGroup, Menu, Portal, Tabs, useBreakpointValue } from '@chakra-ui/react'
 import { useLocation, useNavigate } from 'react-router-dom'
 import logotext from '../assets/logo-text-white.webp'
 
@@ -11,6 +11,7 @@ const Header = ({variant}) => {
     const navigate = useNavigate()
     const location = useLocation()
     const { user, logout, loading } = useAuth()
+    const isMobile = useBreakpointValue({ base: true, md: false })
 
     const handleLogout = async () => {
         const {success, message} = await logout()
@@ -51,13 +52,30 @@ const Header = ({variant}) => {
     if (variant !== 'none' && !loading) {
         if (user !== null) {
             navContent = (
-                <Tabs.Root value={getCurrentPage()} onValueChange={(details) => handleNavigation(details.value)} colorPalette="purple">
-                    <Tabs.List>
-                        <Tabs.Trigger value="home" color="white">Home</Tabs.Trigger>
-                        <Tabs.Trigger value="dashboard" color="white">Dashboard</Tabs.Trigger>
-                        <Tabs.Trigger value="browse" color="white">Browse</Tabs.Trigger>
-                    </Tabs.List>
-                </Tabs.Root>
+                isMobile ? (
+                    <Menu.Root>
+                        <Menu.Trigger>
+                            <Button variant="subtle" colorScheme="purple">Menu</Button>
+                        </Menu.Trigger>
+                        <Portal>
+                            <Menu.Positioner>
+                                <Menu.Content bg="gray.800" border="1px solid" borderColor="gray.700" rounded="md" minW="150px" boxShadow="lg">
+                                    <Menu.Item value="home" color="white" cursor="pointer" onClick={() => navigate('/')}>Home</Menu.Item>
+                                    <Menu.Item value="dashboard" color="white" cursor="pointer" onClick={() => navigate('/dashboard')}>Dashboard</Menu.Item>
+                                    <Menu.Item value="browse" color="white" cursor="pointer" onClick={() => navigate('/browse')}>Browse</Menu.Item>
+                                </Menu.Content>
+                            </Menu.Positioner>
+                        </Portal>
+                    </Menu.Root>
+                ) : (
+                    <Tabs.Root value={getCurrentPage()} onValueChange={(details) => handleNavigation(details.value)} colorPalette="purple" maxW="100%">
+                        <Tabs.List display="flex" flexWrap="wrap">
+                            <Tabs.Trigger value="home" color="white">Home</Tabs.Trigger>
+                            <Tabs.Trigger value="dashboard" color="white">Dashboard</Tabs.Trigger>
+                            <Tabs.Trigger value="browse" color="white">Browse</Tabs.Trigger>
+                        </Tabs.List>
+                    </Tabs.Root>
+                )
             )
             userContent = (
                 <Menu.Root>
@@ -106,20 +124,23 @@ const Header = ({variant}) => {
             )
         } else {
             navContent = (
-                <Tabs.Root value={getCurrentPage()} onValueChange={(details) => handleNavigation(details.value)} colorPalette="purple">
-                    <Tabs.List>
-                        <Tabs.Trigger value="home" color="white">Home</Tabs.Trigger>
-                        <Tabs.Trigger value="dashboard" disabled color="white">Dashboard</Tabs.Trigger>
-                        <Tabs.Trigger value="browse" color="white">Browse</Tabs.Trigger>
-                    </Tabs.List>
-                </Tabs.Root>
+                isMobile ? null : (
+                    <Tabs.Root value={getCurrentPage()} onValueChange={(details) => handleNavigation(details.value)} colorPalette="purple" maxW="100%">
+                        <Tabs.List display="flex" flexWrap="wrap">
+                            <Tabs.Trigger value="home" color="white">Home</Tabs.Trigger>
+                            <Tabs.Trigger value="dashboard" disabled color="white">Dashboard</Tabs.Trigger>
+                            <Tabs.Trigger value="browse" color="white">Browse</Tabs.Trigger>
+                        </Tabs.List>
+                    </Tabs.Root>
+                )
             )
             userContent = (
-                <HStack spacing={4}>
+                <HStack spacing={{ base: 2, md: 4 }}>
                     <Button 
                         color={"white"}
                         colorScheme="purple" 
                         variant="outline" 
+                        size={{ base: 'sm', md: 'md' }}
                         _hover={{ bg: 'purple.700', boxShadow: '0 0 20px rgba(168, 85, 247, 0.5)' }}
                         onClick={() => navigate('/login')}
                     >
@@ -128,6 +149,7 @@ const Header = ({variant}) => {
                     <Button 
                         bg="purple.600" 
                         color="white"
+                        size={{ base: 'sm', md: 'md' }}
                         _hover={{ bg: 'purple.500', boxShadow: '0 0 20px rgba(168, 85, 247, 0.6)' }}
                         onClick={() => navigate('/register')}
                     >
@@ -139,25 +161,26 @@ const Header = ({variant}) => {
     }
 
     return (
-        <Box bg="gray.800" p={"8px"} display={"flex"} justifyContent={"space-between"} alignItems={"center"} h={"64px"}>
-            <Box flex="0 0 220px" display="flex" alignItems="center">
+        <Box bg="gray.800" p={{ base: '8px', md: '8px 12px' }} display={"flex"} justifyContent={"space-between"} alignItems={"center"} h={{ base: '56px', md: '64px' }} w="100%" overflowX="hidden">
+            <Box flex={{ base: '0 0 160px', md: '0 0 220px' }} display="flex" alignItems="center" minW={0}>
                 <Image
                     src={logotext}
                     alt="Logo"
-                    height="50px"
+                    height={{ base: '40px', md: '50px' }}
                     objectFit={"contain"}
                     cursor="pointer"
                     onClick={() => navigate('/')}
                 />
             </Box>
-            <Box display={"flex"} flex={1} justifyContent={"center"}>
+            <Box display={"flex"} flex={1} justifyContent={{ base: 'flex-start', md: 'center' }} minW={0}>
                 {navContent}
             </Box>
             <Box 
-                flex="0 0 220px"
+                flex={{ base: '0 0 auto', md: '0 0 220px' }}
                 display="flex"
                 justifyContent="flex-end"
                 alignItems="center"
+                minW={0}
             >
                 {userContent}
             </Box>

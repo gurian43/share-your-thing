@@ -35,14 +35,14 @@ export const AuthProvider = ({ children }) => {
         fetchUser();
     }, []);
 
-    const login = async (email, password) => {
+    const login = async (email, password, captchaToken) => {
         try {
             const res = await fetch('/api/user/login', {
                 method: 'POST',
                 headers: {
                     'Content-Type': 'application/json',
                 },
-                body: JSON.stringify({ email, password }),
+                body: JSON.stringify({ email, password, captchaToken }),
                 credentials: 'include',
             });
 

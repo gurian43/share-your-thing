@@ -2,7 +2,7 @@ import User from '../models/user.model.js';
 import Activation from '../models/activation.model.js';
 import Bcrypt from 'bcrypt';
 import crypto from 'crypto';
-import { verifyCaptcha } from '../services/reCaptcha.js';
+import { verifyCaptcha } from '../services/turnstile.js';
 import { sendNotificationEmail } from '../services/emailService.js';
 
 export const registerUser = async (req, res) => {
@@ -12,7 +12,10 @@ export const registerUser = async (req, res) => {
         }
 
         if(process.env.mode !== "development") {
-            const captchaResult = await verifyCaptcha(req.body.captchaToken, req.headers['x-forwarded-for'] || req.socket.remoteAddress);
+            const captchaResult = await verifyCaptcha(
+                req.body.captchaToken,
+                req.headers['cf-connecting-ip'] || req.headers['x-forwarded-for'] || req.socket.remoteAddress
+            );
         
             if(!captchaResult || !captchaResult.success) {
                 const statusCode = captchaResult?.code || 400;
@@ -82,6 +85,16 @@ export const loginUser = async (req, res) => {
 
         if (!email || !password) {
             return res.status(400).json({ status: 400, message: 'Missing fields' });
+        }
+
+        const captchaResult = await verifyCaptcha(
+            req.body.captchaToken,
+            req.headers['cf-connecting-ip'] || req.headers['x-forwarded-for'] || req.socket.remoteAddress
+        );
+
+        if(!captchaResult || !captchaResult.success) {
+            const statusCode = captchaResult?.code || 400;
+            return res.status(statusCode).json({ status: statusCode, message: captchaResult?.message || 'Captcha verification failed' });
         }
 
         const user = await User.findOne({ email: email });

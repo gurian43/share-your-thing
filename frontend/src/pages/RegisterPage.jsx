@@ -20,6 +20,7 @@ import Header from '../components/Header'
 import { useAuth } from '../context/AuthContext'
 import { PasswordInput } from '../components/ui/password-input'
 import Footer from '../components/Footer'
+import { Turnstile } from '@marsidev/react-turnstile'
 
 const RegisterPage = () => {
     const { user } = useAuth();
@@ -31,6 +32,7 @@ const RegisterPage = () => {
     const [email, setEmail] = useState('');
     const [password, setPassword] = useState('');
     const [confirmPassword, setConfirmPassword] = useState('');
+    const [captchaToken, setCaptchaToken] = useState(null);
     const [errors, setErrors] = useState({ username: '', email: '', password: '', confirmPassword: '', submit: '' });
 
     const hasMinLength = password.length >= 8;
@@ -101,7 +103,7 @@ const RegisterPage = () => {
                 method: 'POST',
                 headers: { 'Content-Type': 'application/json' },
                 credentials: 'include',
-                body: JSON.stringify({ username, email, password }),
+                body: JSON.stringify({ username, email, password, captchaToken }),
             });
 
             const data = await res.json();
@@ -132,7 +134,7 @@ const RegisterPage = () => {
         <Header variant={"none"} />
 
         <Container maxW="500px" centerContent mt="auto">
-            <VStack spacing={8} w="full">
+            <VStack spacing={4} w="full">
                 <Heading 
                     as="h1" 
                     size="2xl" 
@@ -202,7 +204,7 @@ const RegisterPage = () => {
                                     required
                                 />
 
-                                <List.Root color="gray.400" fontSize="sm" ml={7} spacing={1}>
+                                <List.Root color="gray.400" fontSize="sm" ml={8} gap={8} display={"flex"} flexDirection={"row"}>
                                     <List.Item color={hasMinLength ? 'green.300' : 'red.300'}>
                                         At least 8 characters
                                     </List.Item>
@@ -236,13 +238,21 @@ const RegisterPage = () => {
                                     <Field.ErrorText>{errors.confirmPassword}</Field.ErrorText>
                                 )}
                             </Field.Root>
+                            <Turnstile
+                                siteKey={import.meta.env.VITE_TURNSTILE_SITE_KEY}
+                                onSuccess={(token) => setCaptchaToken(token)}
+                                onError={() => setCaptchaToken(null)}
+                                onExpire={() => setCaptchaToken(null)}
+                                options={{ theme: 'dark' }}
+                            />
                             <Button
                                 type="submit"
                                 w="full"
                                 bg="purple.600"
                                 color="white"
-                                loading={loading}
+                                isLoading={loading}
                                 loadingText="Signing Up"
+                                isDisabled={!captchaToken}
                                 _hover={{ 
                                     bg: 'purple.500',
                                     boxShadow: '0 0 20px rgba(168, 85, 247, 0.6)'
@@ -261,7 +271,7 @@ const RegisterPage = () => {
                         </Fieldset.Content>
                     </Fieldset.Root>
 
-                    <Text color="gray.400" textAlign="center" mt={6}>
+                    <Text color="gray.400" textAlign="center" mt={4}>
                         Already have an account?{' '}
                         <ChakraLink 
                             color="purple.400" 

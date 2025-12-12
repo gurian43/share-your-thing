@@ -45,12 +45,12 @@ const DashboardPage = () => {
     }
 
     return (
-        <Box minH="100vh" bg="gray.900" display={"flex"} flexDirection="column">
+        <Box minH="100vh" bg="gray.900" display={"flex"} flexDirection="column" overflowX="hidden">
             <Header />
 
-            <Container maxW="1400px" py={6}>
+            <Container maxW="1400px" py={6} px={{ base: 4, md: 6 }}>
                 <VStack spacing={6} align="stretch">
-                    <Grid templateColumns="repeat(4, 1fr)" gap={4}>
+                    <Grid templateColumns={{ base: 'repeat(2, 1fr)', md: 'repeat(4, 1fr)' }} gap={4}>
                         <Card.Root bg="gray.800" borderColor="gray.700">
                             <Card.Body>
                                 <Text color="gray.400" fontSize="sm">Total Storage</Text>
@@ -90,7 +90,7 @@ const DashboardPage = () => {
                                 </Button>
 
                                 <HStack spacing={3}>
-                                    <Box position="relative" maxW="300px" w="full">
+                                    <Box position="relative" maxW={{ base: '100%', md: '300px' }} w="full">
                                         <Input
                                             placeholder="Search files..."
                                             value={searchQuery}
@@ -130,7 +130,7 @@ const DashboardPage = () => {
                     </Card.Root>
 
                     {viewMode === 'grid' ? (
-                        <Grid templateColumns="repeat(auto-fill, minmax(200px, 1fr))" gap={4}>
+                        <Grid templateColumns={{ base: 'repeat(2, minmax(0, 1fr))', sm: 'repeat(3, minmax(0, 1fr))', md: 'repeat(auto-fill, minmax(200px, 1fr))' }} gap={4}>
                             {files.map((file) => (
                                 <Card.Root
                                     key={file.id}
