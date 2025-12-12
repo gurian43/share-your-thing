@@ -4,6 +4,7 @@ import cors from 'cors';
 import MongoStore from 'connect-mongo';
 import session from 'express-session';
 import helmet from 'helmet';
+import path from 'path';
 
 import connectToDatabase from './config/db.js';
 import { createTransporter } from './services/emailService.js';
