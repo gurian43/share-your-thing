@@ -61,8 +61,18 @@ app.listen(PORT, () => {
     console.log(`Server is running on port ${PORT}`);
 });
 
-app.get('/', (req, res) => {
-    res.send('Share Your Thing API is running');
-});
+if (process.env.MODE === 'production') {
+    app.use((req, res, next) => {
+        express.static(path.resolve(__dirname, 'frontend', 'dist'))(req, res, next);
+    });
+
+    app.get(/.*/, (req, res) => {
+        res.sendFile(path.resolve(__dirname, 'frontend', 'dist', 'index.html'));
+    });
+} else {
+    app.get("/", (req, res) => {
+        res.send(`API is running... in development mode PORT ${PORT} | <a href="http://localhost:5173">http://localhost:5173</a>`);
+    });
+}
 
 createTransporter();
