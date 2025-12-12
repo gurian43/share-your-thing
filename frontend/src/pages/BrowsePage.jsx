@@ -4,21 +4,18 @@ import Footer from '../components/Footer'
 
 const BrowsePage = () => {
     return (
-        <Box minH="100vh" bg="gray.900" display={"flex"} flexDirection="column">
-            <Header />
-
-            <Container maxW="1200px" centerContent py={20}>
-                <Text
-                    fontSize="xl" 
-                    color="gray.300" 
-                    maxW="700px"
-                >
+    <Box minH="100vh" bg="gray.900" display="flex" flexDirection="column">
+        <Header />
+        <Container maxW="800px" py={12} flex="1">
+            <VStack align="flex-start" spacing={4} color="gray.200">
+                <Heading size="lg">Browse</Heading>
+                <Text fontSize="sm" color="gray.400">
                     not implemented
                 </Text>
-            </Container>
-
-            <Footer />
-        </Box>
+            </VStack>
+        </Container>
+        <Footer />
+    </Box>
     )
 }
 

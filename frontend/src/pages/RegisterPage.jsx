@@ -133,8 +133,8 @@ const RegisterPage = () => {
     <Box minH="100vh" bg="gray.900" display="flex" flexDirection="column">
         <Header variant={"none"} />
 
-        <Container maxW="500px" centerContent mt="auto">
-            <VStack spacing={4} w="full">
+        <Container maxW="500px" centerContent px={{ base: 4, md: 6 }} flex={1}>
+            <VStack spacing={4} w="full" px={{ base: 0, md: 0 }}>
                 <Heading 
                     as="h1" 
                     size="2xl" 
@@ -144,7 +144,7 @@ const RegisterPage = () => {
                     Create Account
                 </Heading>
 
-                <Box w="full" bg="gray.800" p={8} borderRadius="lg" boxShadow="lg" borderTop="2px" borderColor="purple.500">
+                <Box w="full" bg="gray.800" p={{ base: 6, md: 8 }} borderRadius="lg" boxShadow="lg" borderTop="2px" borderColor="purple.500">
                     <Fieldset.Root>
                         <Fieldset.Content>
                             <Field.Root invalid={Boolean(errors.username)}>
@@ -238,13 +238,15 @@ const RegisterPage = () => {
                                     <Field.ErrorText>{errors.confirmPassword}</Field.ErrorText>
                                 )}
                             </Field.Root>
-                            <Turnstile
-                                siteKey={import.meta.env.VITE_TURNSTILE_SITE_KEY}
-                                onSuccess={(token) => setCaptchaToken(token)}
-                                onError={() => setCaptchaToken(null)}
-                                onExpire={() => setCaptchaToken(null)}
-                                options={{ theme: 'dark' }}
-                            />
+                            <Box w="full" display="flex" justifyContent="center">
+                                <Turnstile
+                                    siteKey={import.meta.env.VITE_TURNSTILE_SITE_KEY}
+                                    onSuccess={(token) => setCaptchaToken(token)}
+                                    onError={() => setCaptchaToken(null)}
+                                    onExpire={() => setCaptchaToken(null)}
+                                    options={{ theme: 'dark', size: 'compact' }}
+                                />
+                            </Box>
                             <Button
                                 type="submit"
                                 w="full"

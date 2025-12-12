@@ -5,7 +5,7 @@ const captchaVerifyResponse = async (token, ip) => {
             'Content-Type': 'application/x-www-form-urlencoded'
         },
         body: new URLSearchParams({
-            secret: process.env.TURNSTILE_SECRET_KEY,
+            secret: process.env.MODE === 'development' ? process.env.TURNSTILE_SECRET_KEY_DEV : process.env.TURNSTILE_SECRET_KEY,
             response: token,
             remoteip: ip || ''
         })

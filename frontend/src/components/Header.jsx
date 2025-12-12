@@ -161,7 +161,7 @@ const Header = ({variant}) => {
     }
 
     return (
-        <Box bg="gray.800" p={{ base: '8px', md: '8px 12px' }} display={"flex"} justifyContent={"space-between"} alignItems={"center"} h={{ base: '56px', md: '64px' }} w="100%" overflowX="hidden">
+        <Box bg="gray.800" p={{ base: '8px', md: '8px 12px' }} display={"flex"} justifyContent={"space-between"} alignItems={"center"} h={{ base: '56px', md: '64px' }} w="100%" overflow="hidden">
             <Box flex={{ base: '0 0 160px', md: '0 0 220px' }} display="flex" alignItems="center" minW={0}>
                 <Image
                     src={logotext}
@@ -172,7 +172,7 @@ const Header = ({variant}) => {
                     onClick={() => navigate('/')}
                 />
             </Box>
-            <Box display={"flex"} flex={1} justifyContent={{ base: 'flex-start', md: 'center' }} minW={0}>
+            <Box display={"flex"} flex={1} justifyContent={{ base: 'flex-start', md: 'center' }} minW={0} overflow="hidden">
                 {navContent}
             </Box>
             <Box 

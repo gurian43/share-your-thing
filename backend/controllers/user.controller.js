@@ -87,14 +87,16 @@ export const loginUser = async (req, res) => {
             return res.status(400).json({ status: 400, message: 'Missing fields' });
         }
 
-        const captchaResult = await verifyCaptcha(
-            req.body.captchaToken,
-            req.headers['cf-connecting-ip'] || req.headers['x-forwarded-for'] || req.socket.remoteAddress
-        );
+        if(process.env.MODE !== "development") {
+            const captchaResult = await verifyCaptcha(
+                req.body.captchaToken,
+                req.headers['cf-connecting-ip'] || req.headers['x-forwarded-for'] || req.socket.remoteAddress
+            );
 
-        if(!captchaResult || !captchaResult.success) {
-            const statusCode = captchaResult?.code || 400;
-            return res.status(statusCode).json({ status: statusCode, message: captchaResult?.message || 'Captcha verification failed' });
+            if(!captchaResult || !captchaResult.success) {
+                const statusCode = captchaResult?.code || 400;
+                return res.status(statusCode).json({ status: statusCode, message: captchaResult?.message || 'Captcha verification failed' });
+            }
         }
 
         const user = await User.findOne({ email: email });

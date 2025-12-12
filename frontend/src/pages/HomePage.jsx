@@ -25,12 +25,12 @@ const HomePage = () => {
                     <Image
                         src={logo} 
                         alt="Share Your Thing Logo" 
-                        maxW="400px"
+                        maxW={{ base: '80%', md: '400px' }}
                     />
                     <Text
                         fontSize="xl" 
                         color="gray.300" 
-                        maxW="700px"
+                        maxW={{ base: '90%', md: '700px' }}
                     >
                         The easiest way to share your files with anyone, anywhere
                     </Text>
