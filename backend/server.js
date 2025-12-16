@@ -19,6 +19,8 @@ const __dirname = path.resolve();
 const app = express();
 const PORT = process.env.PORT || 5000;
 
+app.set('trust proxy', 1);
+
 app.use(cors(
     {origin: process.env.CORS_ORIGIN || 'http://localhost:3000', credentials: true}
 ));
@@ -54,6 +56,7 @@ app.use(session({
     cookie: {
         httpOnly: true,
         secure: process.env.NODE_ENV === "production",
+        sameSite: process.env.NODE_ENV === "production" ? "none" : "lax",
         maxAge: 1000 * 60 * 60 * 24 // 1 day
     }
 }));

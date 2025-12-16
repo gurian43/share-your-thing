@@ -26,6 +26,7 @@ const LoginPage = () => {
     const [email, setEmail] = useState('');
     const [loading, setLoading] = useState(false);
     const [captchaToken, setCaptchaToken] = useState(null);
+    const [captchaKey, setCaptchaKey] = useState(0);
 
     const handlePasswordChange = (value) => {
         setPassword(value);
@@ -66,6 +67,8 @@ const LoginPage = () => {
             });
             setLoading(false);
             setPassword('');
+            setCaptchaToken(null);
+            setCaptchaKey(prev => prev + 1);
         }
     }
 
@@ -126,6 +129,7 @@ const LoginPage = () => {
                         </Field.Root>
                         <Box w="full" display="flex" justifyContent="center">
                             <Turnstile
+                                key={captchaKey}
                                 siteKey={import.meta.env.VITE_TURNSTILE_SITE_KEY}
                                 onSuccess={(token) => setCaptchaToken(token)}
                                 onError={() => setCaptchaToken(null)}

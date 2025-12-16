@@ -33,6 +33,7 @@ const RegisterPage = () => {
     const [password, setPassword] = useState('');
     const [confirmPassword, setConfirmPassword] = useState('');
     const [captchaToken, setCaptchaToken] = useState(null);
+    const [captchaKey, setCaptchaKey] = useState(0);
     const [errors, setErrors] = useState({ username: '', email: '', password: '', confirmPassword: '', submit: '' });
 
     const hasMinLength = password.length >= 8;
@@ -119,8 +120,12 @@ const RegisterPage = () => {
                 navigate('/login');
             } else if (res.status === 400 && data?.message?.toLowerCase().includes('email or username')) {
                 setErrors({ username: data.message, email: data.message, password: '', confirmPassword: '', submit: '' });
+                setCaptchaToken(null);
+                setCaptchaKey(prev => prev + 1);
             } else {
                 setErrors((prev) => ({ ...prev, submit: data.message || 'Registration failed' }));
+                setCaptchaToken(null);
+                setCaptchaKey(prev => prev + 1);
             }
         } catch (err) {
             console.error('Registration error:', err);
@@ -241,6 +246,7 @@ const RegisterPage = () => {
                             </Field.Root>
                             <Box w="full" display="flex" justifyContent="center">
                                 <Turnstile
+                                    key={captchaKey}
                                     siteKey={import.meta.env.VITE_TURNSTILE_SITE_KEY}
                                     onSuccess={(token) => setCaptchaToken(token)}
                                     onError={() => setCaptchaToken(null)}
