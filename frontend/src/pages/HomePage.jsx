@@ -11,8 +11,13 @@ import Header from '../components/Header'
 import Footer from '../components/Footer'
 
 import logo from '../assets/logo-text-white.webp'
+import { useEffect } from 'react'
 
 const HomePage = () => {
+
+    useEffect(() => {
+        document.title = "Share Your Thing"
+    }, [])
 
     const navigate = useNavigate()
 

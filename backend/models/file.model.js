@@ -1,9 +1,9 @@
 import mongoose from "mongoose";
 
 const fileSchema = new mongoose.Schema({
-    owner_id: { 
+    owner: { 
         type: mongoose.Schema.Types.ObjectId, 
-        ref: "user", 
+        ref: "User", 
         required: true 
     },
     file_name: { 
@@ -15,7 +15,7 @@ const fileSchema = new mongoose.Schema({
         required: true 
     },
     file_size: { 
-        type: Number, 
+        type: Number,
         required: true 
     },
     visibility: { 
@@ -43,6 +43,11 @@ const fileSchema = new mongoose.Schema({
         type: Number, 
         default: null 
     },
+    shared_with: [{
+        type: mongoose.Schema.Types.ObjectId, 
+        ref: "User",
+        default: []
+    }],
     expires_at: { 
         type: Date, 
         default: null 

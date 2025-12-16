@@ -9,7 +9,9 @@ import {
   createToaster,
 } from '@chakra-ui/react'
 
+// eslint-disable-next-line react-refresh/only-export-components
 export const toaster = createToaster({
+  max: 5,
   placement: 'bottom-end',
   pauseOnPageIdle: true,
 })

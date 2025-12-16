@@ -39,6 +39,7 @@ const RegisterPage = () => {
     const hasNumber = /\d/.test(password);
 
     useEffect(() => {
+        document.title = "Register - Share Your Thing"
         if(user) {
             navigate('/dashboard');
         }
@@ -244,7 +245,7 @@ const RegisterPage = () => {
                                     onSuccess={(token) => setCaptchaToken(token)}
                                     onError={() => setCaptchaToken(null)}
                                     onExpire={() => setCaptchaToken(null)}
-                                    options={{ theme: 'dark', size: 'compact' }}
+                                    options={{ theme: 'dark', size: 'flexible' }}
                                 />
                             </Box>
                             <Button

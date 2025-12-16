@@ -7,7 +7,7 @@ const ProtectedRoute = ({ children }) => {
 
     if (loading) {
         return (
-            <Center h="100vh">
+            <Center h="100vh" w="100vw" bg="gray.900">
                 <Spinner size="xl" color="purple.500" thickness="4px" />
             </Center>
         );

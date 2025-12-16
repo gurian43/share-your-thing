@@ -12,6 +12,7 @@ import ProfilePage from './pages/ProfilePage.jsx'
 import FaqPage from './pages/FaqPage.jsx'
 import PrivacyPage from './pages/PrivacyPage.jsx'
 import AccountPage from './pages/AccountPage.jsx'
+import FilePage from './pages/FilePage.jsx'
 
 
 function App() {
@@ -28,16 +29,13 @@ function App() {
                         <DashboardPage />
                     </ProtectedRoute>
                 } />
-                <Route path="/profile" element={
-                    <ProtectedRoute>
-                        <ProfilePage />
-                    </ProtectedRoute>
-                } />
                 <Route path="/account" element={
                     <ProtectedRoute>
                         <AccountPage />
                     </ProtectedRoute>
                 } />
+                <Route path="/profile/:userid" element={<ProfilePage />} />
+                <Route path="/file/:fileId" element={<FilePage />} />
                 <Route path="/faq" element={<FaqPage />} />
                 <Route path="/privacy" element={<PrivacyPage />} />
             </Routes>

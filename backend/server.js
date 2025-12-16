@@ -10,6 +10,7 @@ import connectToDatabase from './config/db.js';
 import { createTransporter } from './services/emailService.js';
 
 import userRoutes from './routes/user.route.js';
+import fileRoutes from './routes/file.route.js';
 
 dotenv.config();
 
@@ -58,6 +59,7 @@ app.use(session({
 }));
 
 app.use('/api/user', userRoutes);
+app.use('/api/file', fileRoutes);
 
 app.listen(PORT, () => {
     connectToDatabase();

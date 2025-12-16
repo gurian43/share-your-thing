@@ -130,7 +130,7 @@ const LoginPage = () => {
                                 onSuccess={(token) => setCaptchaToken(token)}
                                 onError={() => setCaptchaToken(null)}
                                 onExpire={() => setCaptchaToken(null)}
-                                options={{ theme: 'dark', size: 'compact' }}
+                                options={{ theme: 'dark', size: 'flexible' }}
                             />
                         </Box>
                         <Button 

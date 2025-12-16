@@ -1,22 +1,99 @@
-import { Box, Container, Heading, Text, VStack } from '@chakra-ui/react'
+import { Alert, Box, Button, Container, Heading, HStack, Separator, Span, Text, VStack } from '@chakra-ui/react'
 import Header from '../components/Header'
 import Footer from '../components/Footer'
+import { useEffect, useState } from 'react';
+import { toaster } from '../components/ui/toaster';
+import { useNavigate } from 'react-router-dom';
+import { useAuth } from '../context/AuthContext';
+
 
 const AccountPage = () => {
-  return (
-    <Box minH="100vh" bg="gray.900" display="flex" flexDirection="column">
-        <Header />
-        <Container maxW="800px" py={12} flex="1">
-            <VStack align="flex-start" spacing={4} color="gray.200">
-                <Heading size="lg">Account Settings</Heading>
-                <Text fontSize="sm" color="gray.400">
-                    not implemented
-                </Text>
-            </VStack>
-        </Container>
-        <Footer />
-    </Box>
-  )
+    const navigate = useNavigate();
+    const { logout, user } = useAuth();
+
+    const [activeSection, setActiveSection] = useState("overview");
+
+    useEffect(() => {
+        console.log(user);
+    }, [user]);
+
+    const renderContent = () => {
+        switch (activeSection) {
+            case 'overview':
+                return (
+                    <VStack align="flex-start" spacing={6}>
+                        <Heading color="white" size="xl">Account Overview</Heading>
+                        <Text color="gray.400">Email: {user.email}</Text>
+                        <Text color="gray.400">Account Type: {user.admin ? "Administrator" : "Standard User"}</Text>
+                        <Text color="gray.400">Storage Used: { (user.current_storage / (1024 * 1024)).toFixed(2) } MB / { user.admin ? "Unlimited" : (user.max_storage / (1024 * 1024)).toFixed(2) + " MB" }</Text>
+                        <Text color="gray.400">Status: <Span color="green.400">{user.active ? "Active" : "Inactive"}</Span></Text>
+                    </VStack>
+                )
+            case 'delete':
+                return (
+                    <VStack align="flex-start" spacing={6}>
+                        <Heading color="white" size="xl">Delete Account</Heading>
+                        <Alert.Root colorPalette="red" status="warning" variant="solid">
+                            <Alert.Indicator />
+                            <Alert.Content>
+                                <Alert.Title>Action is irreversible</Alert.Title>
+                                <Alert.Description>
+                                    Deleting your account will permanently remove all your data from our servers, including files. This action cannot be undone.
+                                </Alert.Description>
+                            </Alert.Content>
+                        </Alert.Root>
+                        <Button variant="outline" colorPalette={"red"}>Delete My Account</Button>
+                    </VStack>
+                )
+        }
+    }
+
+    const handleSelect = (content) => {
+        setActiveSection(content);
+    }
+
+    const handleLogout = async () => {
+        const {success, message} = await logout()
+        if (success) {
+            toaster.create({
+                title: message,
+                type: 'success',
+                duration: 3000,
+                isClosable: true,
+            })
+            navigate('/');
+        } else {
+            toaster.create({
+                title: message,
+                type: 'error',
+                duration: 3000,
+                isClosable: true,
+            })
+        }
+    }
+
+    return (
+        <Box minH="100vh" bg="gray.900" display="flex" flexDirection="column">
+            <Header />
+            <Container maxW="800px" py={12} flex="1">
+                <Heading mb={8} color={"white"} size={"2xl"}>Account Page</Heading>
+                <HStack spacing={8} align="stretch">
+                    <Container flex={1}>
+                        <VStack>
+                            <Button w={"100%"} color="white" _hover={{ bg: 'gray.800' }}onClick={() => handleSelect("overview")}>Account Overview</Button>
+                            <Button w={"100%"} color="white" _hover={{ bg: 'gray.800' }} onClick={() => handleSelect("delete")}>Delete Account</Button>
+                            <Button w={"100%"} color="red.300" _hover={{ bg: 'red.800' }} onClick={handleLogout}>Logout</Button>
+                        </VStack>
+                    </Container>
+                    <Separator orientation={"vertical"} />
+                    <Container flex={9}>
+                        {renderContent()}
+                    </Container>
+                </HStack>
+            </Container>
+            <Footer />
+        </Box>
+    )
 }
 
 export default AccountPage

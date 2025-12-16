@@ -1,5 +1,7 @@
 import User from '../models/user.model.js';
 import Activation from '../models/activation.model.js';
+import File from '../models/file.model.js';
+import Vote from '../models/vote.model.js';
 import Bcrypt from 'bcrypt';
 import crypto from 'crypto';
 import { verifyCaptcha } from '../services/turnstile.js';
@@ -25,7 +27,6 @@ export const registerUser = async (req, res) => {
 
         const existingUser = await User.findOne({ $or: [ { email: req.body.email }, { username: req.body.username } ] });
 
-        //in case people are stupid
         if(existingUser) {
             return res.status(400).json({ status: 400, message: 'Email or username already in use' });
         }
@@ -60,6 +61,7 @@ export const registerUser = async (req, res) => {
             username: req.body.username,
             email: req.body.email,
             passwordHash: hashedPassword,
+            badges: [{ title: 'Early Tester', date_awarded: new Date(), color: 'blue' }],
             active: false,
         });
     
@@ -196,3 +198,55 @@ export const deleteUser = async (req, res) => {
         return res.status(500).json({ status: 500, message: 'Server error' });
     }
 }
+
+export const getPublicProfile = async (req, res) => {
+    try {
+        const { userId } = req.params;
+
+        const user = await User.findOne({ _id: userId, active: true })
+            .select('username badges profile createdAt');
+
+        if (!user) {
+            return res.status(404).json({ status: 404, message: 'User not found' });
+        }
+
+        const publicFilesCount = await File.countDocuments({
+            owner: user._id,
+            visibility: 'public'
+        });
+
+        const publicFiles = await File.find({
+            owner: user._id,
+            visibility: 'public'
+        }).select('_id');
+
+        const fileIds = publicFiles.map(file => file._id);
+
+        const upvotes = await Vote.countDocuments({
+            file_id: { $in: fileIds },
+            value: 1
+        });
+
+        const downvotes = await Vote.countDocuments({
+            file_id: { $in: fileIds },
+            value: -1
+        });
+
+        const accountStanding = upvotes - downvotes;
+
+        const profileData = {
+            username: user.username,
+            avatar_url: user.profile.avatar_url || '',
+            bio: user.profile.bio || '',
+            badges: user.badges || [],
+            createdAt: user.createdAt,
+            publicFilesCount,
+            accountStanding
+        };
+
+        return res.status(200).json({ status: 200, data: profileData });
+    } catch (err) {
+        console.error(err);
+        return res.status(500).json({ status: 500, message: 'Server error' });
+    }
+};

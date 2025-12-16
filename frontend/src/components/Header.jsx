@@ -94,7 +94,7 @@ const Header = ({variant}) => {
                                     value="profile"
                                     color="white"
                                     cursor="pointer"
-                                    onClick={() => navigate('/profile')}
+                                    onClick={() => navigate('/profile/' + user._id)}
                                     _hover={{ bg: 'gray.700' }}
                                 >
                                     Profile
