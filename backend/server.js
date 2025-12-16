@@ -55,8 +55,8 @@ app.use(session({
     }),
     cookie: {
         httpOnly: true,
-        secure: process.env.NODE_ENV === "production",
-        sameSite: process.env.NODE_ENV === "production" ? "none" : "lax",
+        secure: false,
+        sameSite: "lax",
         maxAge: 1000 * 60 * 60 * 24 // 1 day
     }
 }));
@@ -70,11 +70,9 @@ app.listen(PORT, () => {
 });
 
 if (process.env.MODE === 'production') {
-    app.use((req, res, next) => {
-        express.static(path.resolve(__dirname, 'frontend', 'dist'))(req, res, next);
-    });
+    app.use(express.static(path.resolve(__dirname, 'frontend', 'dist')));
 
-    app.get(/.*/, (req, res) => {
+    app.get(/^(?!\/api\/)..*/, (req, res) => {
         res.sendFile(path.resolve(__dirname, 'frontend', 'dist', 'index.html'));
     });
 } else {
