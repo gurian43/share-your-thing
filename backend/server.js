@@ -50,14 +50,16 @@ app.use(session({
     store: MongoStore.create({
         mongoUrl: process.env.MONGODB_URI,
         databaseName: "share-your-thing",
-        collectionName: "sessions"
-        
+        collectionName: "sessions",
+        touchAfter: 24 * 3600,
+        stringify: false
     }),
     cookie: {
         httpOnly: true,
         secure: false,
         sameSite: "lax",
-        maxAge: 1000 * 60 * 60 * 24 // 1 day
+        maxAge: 1000 * 60 * 60 * 24, // 1 day
+        path: '/'
     }
 }));
 
