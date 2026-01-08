@@ -1,4 +1,4 @@
-import { Alert, Box, Button, Container, Heading, HStack, Separator, Span, Text, VStack } from '@chakra-ui/react'
+import { Alert, Box, Button, Container, Dialog, Heading, HStack, Separator, Span, Text, VStack } from '@chakra-ui/react'
 import Header from '../components/Header'
 import Footer from '../components/Footer'
 import { useEffect, useState } from 'react';
@@ -12,6 +12,7 @@ const AccountPage = () => {
     const { logout, user } = useAuth();
 
     const [activeSection, setActiveSection] = useState("overview");
+    const [deleteDialogOpen, setDeleteDialogOpen] = useState(false);
 
     useEffect(() => {
         console.log(user);
@@ -42,7 +43,7 @@ const AccountPage = () => {
                                 </Alert.Description>
                             </Alert.Content>
                         </Alert.Root>
-                        <Button variant="outline" colorPalette={"red"}>Delete My Account</Button>
+                        <Button variant="outline" colorPalette={"red"} onClick={() => setDeleteDialogOpen(true)}>Delete My Account</Button>
                     </VStack>
                 )
         }
@@ -72,6 +73,40 @@ const AccountPage = () => {
         }
     }
 
+    const confirmDelete = async () => {
+        try {
+            const res = await fetch('/api/user/delete', {
+                method: 'DELETE',
+                credentials: 'include',
+            });
+
+            const data = await res.json();
+
+            if (res.ok) {
+                toaster.create({
+                    title: data.message || 'Account deleted successfully',
+                    type: 'success',
+                    duration: 3000,
+                });
+                setDeleteDialogOpen(false);
+                navigate('/');
+            } else {
+                toaster.create({
+                    title: data.message || 'Failed to delete account',
+                    type: 'error',
+                    duration: 3000,
+                });
+            }
+        } catch (err) {
+            console.error('Delete account error:', err);
+            toaster.create({
+                title: 'Server error',
+                type: 'error',
+                duration: 3000,
+            });
+        }
+    };
+
     return (
         <Box minH="100vh" bg="gray.900" display="flex" flexDirection="column">
             <Header />
@@ -91,6 +126,26 @@ const AccountPage = () => {
                     </Container>
                 </HStack>
             </Container>
+            <Dialog.Root open={deleteDialogOpen} onOpenChange={(e) => setDeleteDialogOpen(e.open)} zIndex={9999}>
+                <Dialog.Backdrop />
+                <Dialog.Content position="fixed" top="40%" left="50%" transform="translate(-50%, -50%)" maxW="500px" bg="gray.800">
+                    <Dialog.Body>
+                        <VStack spacing={6} align="center" justify="center" py={8}>
+                            <Heading size="lg" color="white" textAlign="center">
+                                Are you really sure you want to delete your account?
+                            </Heading>
+                            <Text color="gray.400" textAlign="center">
+                                This action cannot be undone. All your files and data will be permanently deleted.
+                            </Text>
+                            <HStack spacing={4}>
+                                <Button variant="outline" color="white" _hover={{color: "black"}} onClick={() => setDeleteDialogOpen(false)}>Cancel</Button>
+                                <Button bg="red.600" color="white" onClick={confirmDelete} _hover={{ bg: 'red.500' }}>Delete Account</Button>
+                            </HStack>
+                        </VStack>
+                    </Dialog.Body>
+                </Dialog.Content>
+            </Dialog.Root>
+
             <Footer />
         </Box>
     )

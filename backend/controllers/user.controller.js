@@ -57,6 +57,7 @@ export const registerUser = async (req, res) => {
 
         const salt = await Bcrypt.genSalt(10);
         const hashedPassword = await Bcrypt.hash(req.body.password, salt);
+
         const newUser = new User({
             username: req.body.username,
             email: req.body.email,
@@ -64,7 +65,7 @@ export const registerUser = async (req, res) => {
             badges: [{ title: 'Early Tester', date_awarded: new Date(), color: 'blue' }],
             active: false,
         });
-    
+
         await newUser.save();
 
         const newActivation = new Activation({
@@ -123,7 +124,13 @@ export const loginUser = async (req, res) => {
             _id: user._id,
             username: user.username,
             email: user.email,
-            active: user.active
+            active: user.active,
+            admin: user.admin,
+            role: user.role,
+            current_storage: user.current_storage,
+            max_storage: user.max_storage,
+            badges: user.badges,
+            profile: user.profile
         };
         
         req.session.save((err) => {
@@ -191,7 +198,9 @@ export const getUser = async (req, res) => {
 
 export const deleteUser = async (req, res) => {
     try {
+        await File.deleteMany({ owner: req.session.userId });
         await User.findByIdAndDelete(req.session.userId);
+        
         req.session.destroy(err => {
             if (err) {
                 return res.status(500).json({ status: 500, message: 'Account deleted but logout failed' });
