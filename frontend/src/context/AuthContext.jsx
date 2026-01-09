@@ -22,8 +22,7 @@ export const AuthProvider = ({ children }) => {
                 setUser(null);
                 return {success: false, message: 'Failed to fetch user'};
             }
-        } catch (err) {
-            console.error("Error fetching user:", err);
+        } catch {
             setUser(null);
             return {success: false, message: 'Server Error'};
         } finally {
@@ -55,8 +54,7 @@ export const AuthProvider = ({ children }) => {
                 setUser(null);
                 return {success: false, message: data.message || 'Login request failed'};
             }
-        } catch (err) {
-            console.error('Login error:', err);
+        } catch {
             return {success: false, message: 'Server Error'};
         }
     };
@@ -76,8 +74,7 @@ export const AuthProvider = ({ children }) => {
             } else {
                 return {success: false, message: data.message || 'Logout request failed'};
             }
-        } catch (err) {
-            console.error('Logout error:', err);
+        } catch {
             return {success: false, message: 'Server Error'};
         }
     };

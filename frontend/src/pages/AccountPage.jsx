@@ -1,7 +1,7 @@
 import { Alert, Box, Button, Container, Dialog, Heading, HStack, Separator, Span, Text, VStack } from '@chakra-ui/react'
 import Header from '../components/Header'
 import Footer from '../components/Footer'
-import { useEffect, useState } from 'react';
+import { useState } from 'react';
 import { toaster } from '../components/ui/toaster';
 import { useNavigate } from 'react-router-dom';
 import { useAuth } from '../context/AuthContext';
@@ -13,10 +13,6 @@ const AccountPage = () => {
 
     const [activeSection, setActiveSection] = useState("overview");
     const [deleteDialogOpen, setDeleteDialogOpen] = useState(false);
-
-    useEffect(() => {
-        console.log(user);
-    }, [user]);
 
     const renderContent = () => {
         switch (activeSection) {
@@ -97,8 +93,7 @@ const AccountPage = () => {
                     duration: 3000,
                 });
             }
-        } catch (err) {
-            console.error('Delete account error:', err);
+        } catch {
             toaster.create({
                 title: 'Server error',
                 type: 'error',

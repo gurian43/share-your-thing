@@ -142,7 +142,7 @@ const LoginPage = () => {
                             w="full"
                             bg="purple.600"
                             color="white"
-                            isLoading={loading}
+                            loading={loading}
                             loadingText="Signing In"
                             isDisabled={!captchaToken}
                             _hover={{ 

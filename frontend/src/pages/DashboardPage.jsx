@@ -13,20 +13,7 @@ import UploadDialog from '../components/dashboard/UploadDialog'
 import ShareDialog from '../components/dashboard/ShareDialog'
 import DeleteDialog from '../components/dashboard/DeleteDialog'
 import { toaster } from '../components/ui/toaster'
-
-const formatBytes = (bytes) => {
-    if (!bytes) return '0 B'
-    const k = 1024
-    const sizes = ['B', 'KB', 'MB', 'GB', 'TB']
-    const i = Math.floor(Math.log(bytes) / Math.log(k))
-    return `${(bytes / Math.pow(k, i)).toFixed(2)} ${sizes[i]}`
-}
-
-const getFileType = (fileName) => {
-    if (!fileName) return 'unknown'
-    const ext = fileName.split('.').pop()?.toLowerCase()
-    return ext || 'unknown'
-}
+import { formatBytes, getFileType } from '../utils/fileUtils'
 
 const DashboardPage = () => {
     const navigate = useNavigate()
@@ -50,65 +37,52 @@ const DashboardPage = () => {
     const [deleteDialogOpen, setDeleteDialogOpen] = useState(false)
     const [deleteDialogFile, setDeleteDialogFile] = useState(null)
 
-    useEffect(() => {
-        document.title = 'Dashboard - Share Your Thing'
-        const fetchData = async () => {
-            setLoading(true)
-            try {
-                const userRes = await fetch('/api/user/me', {
-                    method: 'GET',
-                    credentials: 'include',
+    const loadDashboard = async () => {
+        setLoading(true)
+        try {
+            const userRes = await fetch('/api/user/me', {
+                method: 'GET',
+                credentials: 'include',
+            })
+            const filesRes = await fetch('/api/user/files', {
+                method: 'GET',
+                credentials: 'include',
+            })
+
+            if (userRes.ok && filesRes.ok) {
+                const userData = await userRes.json()
+                const filesData = await filesRes.json()
+
+                const formattedFiles = filesData.files.map((file) => ({
+                    id: file._id,
+                    name: file.file_name,
+                    size: file.file_size,
+                    type: getFileType(file.file_name),
+                    uploadedAt: new Date(file.uploaded_at).toISOString().split('T')[0],
+                    shared: file.visibility !== 'private',
+                    visibility: file.visibility,
+                    shared_with_count: file.shared_with_count || 0,
+                }))
+
+                const totalStorageBytes = userData.user.max_storage
+                const usedStorageBytes = userData.user.current_storage
+                const sharedFilesCount = formattedFiles.filter(
+                    (f) => f.shared_with_count > 0 || f.visibility === 'public' || f.visibility === 'unlisted'
+                ).length
+
+                setFiles(formattedFiles)
+                setFilteredFiles(formattedFiles)
+                const isAdmin = userData.user.admin
+                setStats({
+                    totalStorage: isAdmin ? 'Unlimited' : formatBytes(totalStorageBytes),
+                    usedStorage: formatBytes(usedStorageBytes),
+                    totalStorageBytes: totalStorageBytes,
+                    usedStorageBytes: usedStorageBytes,
+                    filesCount: formattedFiles.length,
+                    sharedCount: sharedFilesCount,
+                    isAdmin: isAdmin,
                 })
-                const filesRes = await fetch('/api/user/files', {
-                    method: 'GET',
-                    credentials: 'include',
-                })
-
-                if (userRes.ok && filesRes.ok) {
-                    const userData = await userRes.json()
-                    const filesData = await filesRes.json()
-
-                    const formattedFiles = filesData.files.map((file) => ({
-                        id: file._id,
-                        name: file.file_name,
-                        size: file.file_size,
-                        type: getFileType(file.file_name),
-                        uploadedAt: new Date(file.uploaded_at).toISOString().split('T')[0],
-                        shared: file.visibility !== 'private',
-                        visibility: file.visibility,
-                        shared_with_count: file.shared_with_count || 0,
-                    }))
-
-                    const totalStorageBytes = userData.user.max_storage
-                    const usedStorageBytes = userData.user.current_storage
-                    const sharedFilesCount = formattedFiles.filter(
-                        (f) => f.shared_with_count > 0 || f.visibility === 'public' || f.visibility === 'unlisted'
-                    ).length
-
-                    setFiles(formattedFiles)
-                    setFilteredFiles(formattedFiles)
-                    const isAdmin = userData.user.admin
-                    setStats({
-                        totalStorage: isAdmin ? 'Unlimited' : formatBytes(totalStorageBytes),
-                        usedStorage: formatBytes(usedStorageBytes),
-                        totalStorageBytes: totalStorageBytes,
-                        usedStorageBytes: usedStorageBytes,
-                        filesCount: formattedFiles.length,
-                        sharedCount: sharedFilesCount,
-                        isAdmin: isAdmin,
-                    })
-                } else {
-                    setFiles([])
-                    setStats({
-                        totalStorage: '- GB',
-                        usedStorage: '- B',
-                        filesCount: 0,
-                        sharedCount: 0,
-                        isAdmin: false,
-                    })
-                }
-            } catch (err) {
-                console.error('Error fetching dashboard data:', err)
+            } else {
                 setFiles([])
                 setStats({
                     totalStorage: '- GB',
@@ -117,12 +91,24 @@ const DashboardPage = () => {
                     sharedCount: 0,
                     isAdmin: false,
                 })
-            } finally {
-                setLoading(false)
             }
+        } catch {
+            setFiles([])
+            setStats({
+                totalStorage: '- GB',
+                usedStorage: '- B',
+                filesCount: 0,
+                sharedCount: 0,
+                isAdmin: false,
+            })
+        } finally {
+            setLoading(false)
         }
+    }
 
-        fetchData()
+    useEffect(() => {
+        document.title = 'Dashboard - Share Your Thing'
+        loadDashboard()
     }, [])
 
     const handleSearch = (query) => {
@@ -235,7 +221,11 @@ const DashboardPage = () => {
                 </VStack>
             </Container>
 
-            <UploadDialog isOpen={uploadDialogOpen} onClose={() => setUploadDialogOpen(false)} />
+            <UploadDialog
+                isOpen={uploadDialogOpen}
+                onClose={() => setUploadDialogOpen(false)}
+                onUploaded={() => loadDashboard()}
+            />
             <ShareDialog isOpen={shareDialogOpen} file={shareDialogFile} onClose={() => setShareDialogOpen(false)} />
             <DeleteDialog
                 isOpen={deleteDialogOpen}

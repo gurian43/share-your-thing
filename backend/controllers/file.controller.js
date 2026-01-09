@@ -1,5 +1,8 @@
 import File from '../models/file.model.js';
 import User from '../models/user.model.js';
+import crypto from 'crypto';
+import fs from 'fs';
+import path from 'path';
 
 export const getFileById = async (req, res) => {
     try {
@@ -45,55 +48,6 @@ export const getUserFiles = async (req, res) => {
     }
 };
 
-export const createDevFile = async (req, res) => {
-    try {
-        if (process.env.NODE_ENV !== 'development') {
-            return res.status(403).json({ status: 403, message: 'Forbidden' });
-        }
-
-        const { owner,
-            file_name,
-            file_size,
-            visibility,
-            password,
-            description,
-            checksum,
-            download_count,
-            max_downloads,
-            shared_with,
-            expires_at,
-            uploaded_at
-        } = req.body;
-
-        const newFile = new File({
-            owner,
-            file_name,
-            file_path: `/${owner}/files/${file_name}`,
-            file_size,
-            visibility,
-            password,
-            description,
-            checksum,
-            download_count,
-            max_downloads,
-            shared_with,
-            expires_at,
-            uploaded_at
-        });
-
-        await newFile.save();
-
-        await User.findByIdAndUpdate(owner, {
-            $inc: { current_storage: file_size }
-        });
-
-        return res.status(201).json({ status: 201, message: 'File created successfully', file: newFile });
-    } catch (err) {
-        console.error('Error creating file:', err);
-        return res.status(500).json({ status: 500, message: 'Internal server error' });
-    }
-};
-
 export const deleteFile = async (req, res) => {
     try {
         const { fileId } = req.params;
@@ -108,8 +62,19 @@ export const deleteFile = async (req, res) => {
             return res.status(404).json({ status: 404, message: 'File not found' });
         }
 
-        if (file.owner.toString() !== req.session.userId) {
+        const ownerId = file.owner.toString();
+        const sessionUserId = req.session.userId ? req.session.userId.toString() : '';
+        if (ownerId !== sessionUserId) {
             return res.status(403).json({ status: 403, message: 'Access denied' });
+        }
+
+        const uploadsRoot = path.resolve(process.cwd(), 'uploads');
+        const absolutePath = path.resolve(uploadsRoot, file.file_path);
+        try {
+            await fs.promises.unlink(absolutePath);
+        } catch (err) {
+            console.error('Error deleting file from disk:', err);
+            return res.status(500).json({ status: 500, message: 'Failed to delete file from storage' });
         }
 
         await User.findByIdAndUpdate(req.session.userId, {
@@ -121,6 +86,63 @@ export const deleteFile = async (req, res) => {
         return res.status(200).json({ status: 200, message: 'File deleted successfully' });
     } catch (err) {
         console.error('Error deleting file:', err);
+        return res.status(500).json({ status: 500, message: 'Internal server error' });
+    }
+};
+
+export const uploadFile = async (req, res) => {
+    try {
+        if (!req.file) {
+            return res.status(400).json({ status: 400, message: 'No file uploaded' });
+        }
+
+        const userId = req.session.userId;
+        const {
+            visibility = 'unlisted',
+            password = null,
+            description = '',
+            max_downloads = null,
+            expires_at = null
+        } = req.body || {};
+
+        //TODO  add checksum later
+        const checksum = "example_checksum";
+        
+        const absolutePath = req.file.path;
+        const uploadsRoot = path.resolve(process.cwd(), 'uploads');
+        const storedRelPath = path
+            .relative(uploadsRoot, absolutePath)
+            .split(path.sep)
+            .join('/');
+
+        const allowedVis = ['private', 'unlisted', 'public'];
+        const safeVisibility = allowedVis.includes(visibility) ? visibility : 'unlisted';
+
+        const parsedMax = max_downloads ? Number(max_downloads) : null;
+        const parsedExpires = expires_at ? new Date(expires_at) : null;
+
+        const newFile = new File({
+            owner: userId,
+            file_name: req.file.originalname,
+            file_path: storedRelPath,
+            file_size: req.file.size,
+            visibility: safeVisibility,
+            password: password || null,
+            description: description || '',
+            checksum,
+            max_downloads: Number.isFinite(parsedMax) && parsedMax > 0 ? parsedMax : null,
+            expires_at: parsedExpires && !isNaN(parsedExpires.valueOf()) ? parsedExpires : null,
+        });
+
+        await newFile.save();
+
+        await User.findByIdAndUpdate(userId, {
+            $inc: { current_storage: req.file.size }
+        });
+
+        return res.status(201).json({ status: 201, message: 'File uploaded successfully', file: newFile });
+    } catch (err) {
+        console.error('Error uploading file:', err);
         return res.status(500).json({ status: 500, message: 'Internal server error' });
     }
 };

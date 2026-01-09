@@ -34,8 +34,7 @@ const ProfilePage = () => {
                     const errorData = await response.json();
                     setError(errorData.message || 'Failed to load profile');
                 }
-            } catch (err) {
-                console.error('Error fetching profile:', err);
+            } catch {
                 setError('Failed to load profile');
             } finally {
                 setLoading(false);

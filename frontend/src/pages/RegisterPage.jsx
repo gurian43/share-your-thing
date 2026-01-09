@@ -127,8 +127,7 @@ const RegisterPage = () => {
                 setCaptchaToken(null);
                 setCaptchaKey(prev => prev + 1);
             }
-        } catch (err) {
-            console.error('Registration error:', err);
+        } catch {
             setErrors((prev) => ({ ...prev, submit: 'Server error during registration' }));
         } finally {
             setLoading(false);
@@ -259,7 +258,7 @@ const RegisterPage = () => {
                                 w="full"
                                 bg="purple.600"
                                 color="white"
-                                isLoading={loading}
+                                loading={loading}
                                 loadingText="Signing Up"
                                 isDisabled={!captchaToken}
                                 _hover={{ 
