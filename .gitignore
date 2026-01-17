@@ -45,3 +45,6 @@ Thumbs.db
 .npm/
 .eslintcache
 .parcel-cache/
+
+# Production uploads
+uploads/
