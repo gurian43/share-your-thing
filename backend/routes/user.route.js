@@ -1,5 +1,5 @@
 import express from 'express';
-import { registerUser, loginUser, logoutUser, activateUser, getUser, deleteUser, getPublicProfile } from '../controllers/user.controller.js';
+import { registerUser, loginUser, logoutUser, activateUser, getUser, deleteUser, getPublicProfile, recalculateStorageUsage } from '../controllers/user.controller.js';
 import { getUserFiles } from '../controllers/file.controller.js';
 
 import requireAuth from '../services/protectedRoute.js';
@@ -14,5 +14,6 @@ router.get('/me', requireAuth, getUser);
 router.get('/profile/:userId', getPublicProfile);
 router.get('/files', requireAuth, getUserFiles);
 router.delete('/delete', requireAuth, deleteUser);
+router.post('/recalculate-storage', requireAuth, recalculateStorageUsage);
 
 export default router;

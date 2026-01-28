@@ -14,6 +14,7 @@ import PrivacyPage from './pages/PrivacyPage.jsx'
 import AccountPage from './pages/AccountPage.jsx'
 import FilePage from './pages/FilePage.jsx'
 
+import './App.css'
 
 function App() {
 

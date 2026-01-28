@@ -10,6 +10,7 @@ import {
     Icon,
     Input,
     NumberInput,
+    Progress,
     Select,
     Separator,
     Text,
@@ -18,6 +19,9 @@ import {
 } from '@chakra-ui/react'
 import { toaster } from '../ui/toaster'
 import { LuFile, LuUpload } from 'react-icons/lu'
+import { createSHA256 } from 'hash-wasm'
+
+const CHUNK_SIZE = 5 * 1024 * 1024; // 5MB
 
 const UploadDialog = ({ isOpen, onClose, onUploaded }) => {
     const [step, setStep] = useState(1)
@@ -28,6 +32,9 @@ const UploadDialog = ({ isOpen, onClose, onUploaded }) => {
     const [maxDownloads, setMaxDownloads] = useState(0)
     const [expiresAt, setExpiresAt] = useState('')
     const [submitting, setSubmitting] = useState(false)
+    const [uploadProgress, setUploadProgress] = useState(0)
+    const [uploadedChunks, setUploadedChunks] = useState(0)
+    const [totalChunks, setTotalChunks] = useState(0)
 
     const visibilityOptions = createListCollection({
         items: [
@@ -55,6 +62,9 @@ const UploadDialog = ({ isOpen, onClose, onUploaded }) => {
         setMaxDownloads('')
         setExpiresAt('')
         setSubmitting(false)
+        setUploadProgress(0)
+        setUploadedChunks(0)
+        setTotalChunks(0)
     }
 
     const closeAndReset = () => {
@@ -71,39 +81,200 @@ const UploadDialog = ({ isOpen, onClose, onUploaded }) => {
 
     const handleSubmit = async () => {
         if (!file) return
-        const formData = new FormData()
-        formData.append('file', file)
-        formData.append('description', description)
-        formData.append('visibility', visibility)
-        if (password) formData.append('password', password)
-        if (maxDownloads && maxDownloads > 0) formData.append('max_downloads', maxDownloads)
-        if (expiresAt) formData.append('expires_at', expiresAt)
 
-        const promise = fetch('/api/file/upload', {
-            method: 'POST',
-            credentials: 'include',
-            body: formData,
-        })
-
+        if (password && password.length > 32) {
+            toaster.create({
+                title: 'Password must be 32 characters or less',
+                type: 'error',
+                duration: 4000,
+            })
+            return
+        }
+        
         setSubmitting(true)
-        toaster.promise(promise, {
-            loading: { title: 'Uploading file...' },
-            success: { title: 'File uploaded successfully!' },
-            error: { title: 'Failed to upload file.' },
+
+        const toastId = toaster.create({
+            title: 'Uploading file...',
+            description: 'Starting upload',
+            type: 'loading',
+            duration: 60000,
         })
 
-        const res = await promise.finally(() => setSubmitting(false))
-        if (res.ok) {
-            const data = await res.json()
-            onUploaded?.(data.file)
+        try {
+            // total chunks
+            const chunks = Math.ceil(file.size / CHUNK_SIZE)
+            setTotalChunks(chunks)
+            setUploadedChunks(0)
+            setUploadProgress(0)
+
+            // check existing upload in local
+            const uploadKey = `upload_${file.name}_${file.size}`
+            const existingUpload = localStorage.getItem(uploadKey)
+            let uploadId
+            let startChunk = 0
+            let uploadedChunks = []
+
+            if (existingUpload) {
+                const uploadState = JSON.parse(existingUpload)
+                const ageHours = (Date.now() - uploadState.timestamp) / (1000 * 60 * 60)
+                
+                // resume if <24h old
+                if (ageHours < 24) {
+                    uploadId = uploadState.uploadId
+                    
+                    // check uploaded chunks
+                    const statusRes = await fetch(`/api/file/upload/status?uploadId=${uploadId}`, {
+                        credentials: 'include',
+                    })
+                    
+                    if (statusRes.ok) {
+                        const statusData = await statusRes.json()
+                        uploadedChunks = statusData.uploadedChunks || []
+                        startChunk = uploadedChunks.length
+                        
+                        if (startChunk > 0) {
+                            toaster.update(toastId, {
+                                title: 'Resuming upload...',
+                                description: `Found ${startChunk} of ${chunks} chunks already uploaded`,
+                                type: 'info',
+                                duration: 3000,
+                            })
+                        }
+                    }
+                }
+            }
+
+            // generate new id
+            if (!uploadId) {
+                uploadId = `${Date.now()}-${Math.random().toString(36).substring(2, 9)}`
+                
+                // save upload to local
+                localStorage.setItem(uploadKey, JSON.stringify({
+                    uploadId,
+                    fileName: file.name,
+                    fileSize: file.size,
+                    timestamp: Date.now()
+                }))
+            }
+
+            // start checksum
+            const hasher = await createSHA256();
+            hasher.init();
+
+            // upload chunks
+            for (let i = 0; i < chunks; i++) {
+                const start = i * CHUNK_SIZE;
+                const end = Math.min(start + CHUNK_SIZE, file.size);
+                const chunk = file.slice(start, end);
+
+                const chunkBuffer = await chunk.arrayBuffer();
+                hasher.update(new Uint8Array(chunkBuffer));
+
+                const uploaded = i + 1;
+                const pct = (uploaded / chunks) * 100;
+                setUploadedChunks(uploaded);
+                setUploadProgress(pct);
+
+                // Skip already uploaded chunks
+                if (uploadedChunks.includes(i)) {
+                    toaster.update(toastId, {
+                        title: 'Processing file...',
+                        description: `Verifying chunk ${uploaded}/${chunks} (${pct.toFixed(1)}%)`,
+                        type: 'loading',
+                        duration: 60000,
+                    })
+                    continue;
+                }
+
+                const chunkFormData = new FormData();
+                chunkFormData.append('chunk', chunk);
+                chunkFormData.append('chunkIndex', i);
+                chunkFormData.append('totalChunks', chunks);
+                chunkFormData.append('uploadId', uploadId);
+                chunkFormData.append('fileName', file.name);
+
+                toaster.update(toastId, {
+                    title: 'Uploading file...',
+                    description: `Uploading chunk ${uploaded}/${chunks} (${pct.toFixed(1)}%)`,
+                    type: 'loading',
+                    duration: 60000,
+                })
+
+                const chunkRes = await fetch('/api/file/upload/chunk', {
+                    method: 'POST',
+                    credentials: 'include',
+                    body: chunkFormData,
+                })
+
+                if (!chunkRes.ok) {
+                    throw new Error(`Failed to upload chunk ${i + 1}`)
+                }
+            }
+
+            // Complete checksum
+            const checksum = hasher.digest('hex');
+
+            toaster.update(toastId, {
+                title: 'Finalizing upload...',
+                description: 'Merging chunks and saving file',
+                type: 'loading',
+                duration: 60000,
+            })
+
+            // Merge chunks
+            const mergeRes = await fetch('/api/file/upload/finalize', {
+                method: 'POST',
+                credentials: 'include',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify({
+                    uploadId,
+                    fileName: file.name,
+                    fileSize: file.size,
+                    totalChunks: chunks,
+                    checksum,
+                    description,
+                    visibility,
+                    password: password || null,
+                    max_downloads: maxDownloads && maxDownloads > 0 ? maxDownloads : null,
+                    expires_at: expiresAt || null,
+                }),
+            })
+
+            if (!mergeRes.ok) {
+                throw new Error('Failed to finalize upload');
+            }
+
+            const mergeData = await mergeRes.json();
+            onUploaded?.(mergeData.file);
+
+            // Clear upload state from localStorage on success
+            localStorage.removeItem(uploadKey);
+
+            toaster.update(toastId, {
+                title: 'Success!',
+                description: `${file.name} uploaded successfully`,
+                type: 'success',
+                duration: 4000,
+            })
+
             closeAndReset()
+        } catch (err) {
+            console.error('Upload error:', err)
+            toaster.update(toastId, {
+                title: 'Upload failed',
+                description: err?.message || 'An error occurred during upload',
+                type: 'error',
+                duration: 5000,
+            })
+        } finally {
+            setSubmitting(false);
         }
     }
 
     return (
         <Dialog.Root open={isOpen} onOpenChange={(e) => { if (!e.open) closeAndReset() }} zIndex={9999}>
             <Dialog.Backdrop />
-            <Dialog.Content position="fixed" top="50%" left="50%" transform="translate(-50%, -50%)" maxW="600px" bg="gray.800">
+            <Dialog.Content position="fixed" top="40%" left="50%" transform="translate(-50%, -50%)" maxW="600px" bg="gray.800">
                 <Dialog.Header>
                     <Dialog.Title color="white">{step === 1 ? 'Upload File' : 'File Settings'}</Dialog.Title>
                 </Dialog.Header>
@@ -220,11 +391,13 @@ const UploadDialog = ({ isOpen, onClose, onUploaded }) => {
                                         type="password"
                                         value={password}
                                         onChange={(e) => setPassword(e.target.value)}
+                                        maxLength={32}
                                         placeholder="Set a password"
                                         bg="gray.700"
                                         borderColor="gray.600"
                                         color="white"
                                     />
+                                    <Field.HelperText color="gray.400">Max 32 characters</Field.HelperText>
                                 </Field.Root>
                             </HStack>
                             <HStack spacing={4} align="stretch">
@@ -261,6 +434,25 @@ const UploadDialog = ({ isOpen, onClose, onUploaded }) => {
                             {fileInfo && (
                                 <Box color="gray.300">
                                     <Text fontSize="sm">Uploading: {fileInfo.name}</Text>
+                                    {submitting && totalChunks > 0 && (
+                                        <>
+                                            <Progress.Root
+                                                value={uploadProgress}
+                                                max={100}
+                                                size="sm"
+                                                colorPalette="purple"
+                                                mt={2}
+                                                css={{ '& > div > div': { transition: 'width 0.1s ease-in-out' } }}
+                                            >
+                                                <Progress.Track>
+                                                    <Progress.Range />
+                                                </Progress.Track>
+                                            </Progress.Root>
+                                            <Text fontSize="xs" mt={1}>
+                                                Chunk {uploadedChunks} of {totalChunks} ({Math.round(uploadProgress)}%)
+                                            </Text>
+                                        </>
+                                    )}
                                 </Box>
                             )}
                         </VStack>

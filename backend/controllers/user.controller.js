@@ -5,7 +5,7 @@ import Vote from '../models/vote.model.js';
 import Bcrypt from 'bcrypt';
 import crypto from 'crypto';
 import { verifyCaptcha } from '../services/turnstile.js';
-import { sendNotificationEmail } from '../services/emailService.js';
+import { sendNotificationEmail } from '../services/emailService.js'
 
 export const registerUser = async (req, res) => {
     try {
@@ -262,6 +262,24 @@ export const getPublicProfile = async (req, res) => {
         return res.status(200).json({ status: 200, data: profileData });
     } catch (err) {
         console.error(err);
+        return res.status(500).json({ status: 500, message: 'Server error' });
+    }
+};
+
+export const recalculateStorageUsage = async (req, res) => {
+    const userId = req.session.userId;
+
+    try {
+        const totalStorage = await File.aggregate([
+            { $match: { owner: userId } },
+            { $group: { _id: null, totalSize: { $sum: "$file_size" } } }
+        ]);
+        const newStorageUsage = totalStorage.length > 0 ? totalStorage[0].totalSize : 0;
+
+        await User.findByIdAndUpdate(userId, { current_storage: newStorageUsage });
+        return res.status(200).json({ status: 200, message: 'Storage usage recalculated', current_storage: newStorageUsage });
+    } catch (err) {
+        console.error('Error recalculating storage usage for user', userId, err);
         return res.status(500).json({ status: 500, message: 'Server error' });
     }
 };

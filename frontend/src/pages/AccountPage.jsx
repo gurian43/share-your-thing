@@ -5,6 +5,7 @@ import { useState } from 'react';
 import { toaster } from '../components/ui/toaster';
 import { useNavigate } from 'react-router-dom';
 import { useAuth } from '../context/AuthContext';
+import { LuRefreshCw } from 'react-icons/lu';
 
 
 const AccountPage = () => {
@@ -13,6 +14,28 @@ const AccountPage = () => {
 
     const [activeSection, setActiveSection] = useState("overview");
     const [deleteDialogOpen, setDeleteDialogOpen] = useState(false);
+
+    const handleRecalculateStorage = async () => {
+        const promise = fetch('/api/user/recalculate-storage', {
+            method: 'POST',
+            credentials: 'include',
+        }).then(res => res.json());
+
+        toaster.promise(promise, {
+            success: (data) => {
+                user.current_storage = data.current_storage;
+                return {
+                    title: data.message || 'Storage usage recalculated successfully',
+                };
+            },
+            error: {
+                title: 'Failed to recalculate storage usage',
+            },
+            loading: {
+                title: 'Recalculating storage...',
+            },
+        });
+    };
 
     const renderContent = () => {
         switch (activeSection) {
@@ -24,6 +47,9 @@ const AccountPage = () => {
                         <Text color="gray.400">Account Type: {user.admin ? "Administrator" : "Standard User"}</Text>
                         <Text color="gray.400">Storage Used: { (user.current_storage / (1024 * 1024)).toFixed(2) } MB / { user.admin ? "Unlimited" : (user.max_storage / (1024 * 1024)).toFixed(2) + " MB" }</Text>
                         <Text color="gray.400">Status: <Span color="green.400">{user.active ? "Active" : "Inactive"}</Span></Text>
+                        <Button onClick={handleRecalculateStorage} _hover={{ bg: 'gray.800' }}>
+                            Recalculate Storage Usage <LuRefreshCw />
+                        </Button>
                     </VStack>
                 )
             case 'delete':
@@ -70,36 +96,28 @@ const AccountPage = () => {
     }
 
     const confirmDelete = async () => {
-        try {
-            const res = await fetch('/api/user/delete', {
-                method: 'DELETE',
-                credentials: 'include',
-            });
+        setDeleteDialogOpen(false);
 
-            const data = await res.json();
+        const promise = fetch('/api/user/delete', {
+            method: 'DELETE',
+            credentials: 'include',
+        }).then(res => res.json());
 
-            if (res.ok) {
-                toaster.create({
-                    title: data.message || 'Account deleted successfully',
-                    type: 'success',
-                    duration: 3000,
-                });
-                setDeleteDialogOpen(false);
+        toaster.promise(promise, {
+            success: async (data) => {
+                await logout();
                 navigate('/');
-            } else {
-                toaster.create({
-                    title: data.message || 'Failed to delete account',
-                    type: 'error',
-                    duration: 3000,
-                });
-            }
-        } catch {
-            toaster.create({
-                title: 'Server error',
-                type: 'error',
-                duration: 3000,
-            });
-        }
+                return {
+                    title: data.message || 'Account deleted successfully',
+                };
+            },
+            error: {
+                title: 'Failed to delete account',
+            },
+            loading: {
+                title: 'Deleting account...',
+            },
+        });
     };
 
     return (
