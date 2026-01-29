@@ -62,6 +62,7 @@ const DashboardPage = () => {
                     shared: file.visibility !== 'private',
                     visibility: file.visibility,
                     shared_with_count: file.shared_with_count || 0,
+                    active: file.active,
                 }))
 
                 const totalStorageBytes = userData.user.max_storage

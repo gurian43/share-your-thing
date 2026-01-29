@@ -39,6 +39,13 @@ const FileInfoPanel = ({ file, timeRemaining, formatFileSize, formatDate }) => {
                         icon={<LuDownload size={20} color="gray" />}
                         label="Downloads"
                         value={`${file.download_count}${file.max_downloads ? ` / ${file.max_downloads}` : ''}`}
+                        valueColor={
+                            file.max_downloads && file.download_count >= file.max_downloads
+                                ? 'red.600'
+                                : file.max_downloads && (file.max_downloads - file.download_count) / file.max_downloads < 0.2
+                                ? 'yellow.400'
+                                : 'white'
+                        }
                     />
                     {file.expires_at && (
                         <InfoRow

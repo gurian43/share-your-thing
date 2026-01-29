@@ -95,25 +95,36 @@ const FilePage = () => {
         })
     }
 
-    const handleDownload = () => {
-        const downloadPromise = new Promise((resolve, reject) => {
-            setTimeout(() => {
-                Math.random() < 0.5 ? resolve() : reject(new Error('Download failed'))
-            }, 1000)
-        })
+    const handleDownload = async () => {
+        try {
+            window.location.href = `/api/file/${fileId}/download`;
 
-        toaster.promise(downloadPromise, {
-            success: {
+            setFile(prevFile => ({
+                ...prevFile,
+                download_count: prevFile.download_count + 1
+            }));
+
+            if (file.max_downloads) {
+                setFile(prevFile => ({
+                    ...prevFile,
+                    active: prevFile.download_count + 1 < file.max_downloads
+                }));
+            }
+            
+            toaster.create({
                 title: 'Download started!',
-            },
-            error: {
+                type: 'success',
+                duration: 3000,
+            });
+        } catch (error) {
+            console.error('Download error:', error);
+            toaster.create({
                 title: 'Failed to start download.',
-            },
-            loading: {
-                title: 'Preparing your download...',
-            },
-        })
-    }
+                type: 'error',
+                duration: 3000,
+            });
+        }
+    };
 
     const handleShare = () => {
         const shareLink = `${window.location.origin}/file/${file._id}`
@@ -180,7 +191,7 @@ const FilePage = () => {
                         <FileDescriptionCard description={file.description} />
                     </Grid>
 
-                    <FileDownloadActions onDownload={handleDownload} />
+                    <FileDownloadActions file={file} onDownload={handleDownload} />
                 </VStack>
             </Container>
 

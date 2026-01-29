@@ -48,9 +48,13 @@ const fileSchema = new mongoose.Schema({
         ref: "User",
         default: []
     }],
+    active: {
+        type: Boolean,
+        default: true
+    },
     expires_at: { 
         type: Date, 
-        default: null 
+        default: null
     },
     uploaded_at: { 
         type: Date, 

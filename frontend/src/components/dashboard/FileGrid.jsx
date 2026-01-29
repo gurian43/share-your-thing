@@ -1,4 +1,4 @@
-import { Box, Card, Flex, Grid, HStack, IconButton, Separator, Text, VStack } from '@chakra-ui/react'
+import { Box, Card, Flex, Grid, HStack, IconButton, Separator, Text, VStack, Badge } from '@chakra-ui/react'
 import { LuDownload, LuShare2, LuTrash2 } from 'react-icons/lu'
 import { formatBytes, getFileIcon } from '../../utils/fileUtils'
 
@@ -23,6 +23,11 @@ const FileGrid = ({ files, onOpenFile, onShare = noop, onDelete = noop, onDownlo
                                 <Box color="purple.300">
                                     {getFileIcon(file.type)}
                                 </Box>
+                                {!file.active && (
+                                    <Badge colorPalette="red" fontSize="xs">
+                                        Inactive
+                                    </Badge>
+                                )}
                             </Flex>
 
                             <VStack align="start" spacing={1}>

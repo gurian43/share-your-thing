@@ -18,6 +18,11 @@ export const getFileById = async (req, res) => {
             return res.status(404).json({ status: 404, message: 'File not found' });
         }
 
+        if (file.expires_at && new Date(file.expires_at) < new Date()) {
+            file.active = false;
+            await file.save();
+        }
+
         file.shared_with_count = file.shared_with.length;
 
         if (file.visibility === 'private') {
@@ -86,6 +91,75 @@ export const deleteFile = async (req, res) => {
         return res.status(200).json({ status: 200, message: 'File deleted successfully' });
     } catch (err) {
         console.error('Error deleting file:', err);
+        return res.status(500).json({ status: 500, message: 'Internal server error' });
+    }
+};
+
+export const downloadFile = async (req, res) => {
+    try {
+        const { fileId } = req.params;
+
+        if (!fileId) {
+            return res.status(400).json({ status: 400, message: 'File ID is required' });
+        }
+
+        const file = await File.findById(fileId);
+
+        if (!file) {
+            return res.status(404).json({ status: 404, message: 'File not found' });
+        }
+
+        // Check if file is active
+        if (!file.active) {
+            return res.status(410).json({ status: 410, message: 'File is no longer active' });
+        }
+
+        // Check visibility and access permissions
+        if (file.visibility === 'private') {
+            const isOwner = file.owner.toString() === req.session.userId?.toString();
+            const isSharedWith = file.shared_with.some(id => id.toString() === req.session.userId?.toString());
+            if (!req.session.userId || (!isOwner && !isSharedWith)) {
+                return res.status(403).json({ status: 403, message: 'Access denied' });
+            }
+        }
+
+        // Check if max downloads reached
+        if (file.max_downloads && file.download_count >= file.max_downloads) {
+            file.active = false;
+            await file.save();
+            return res.status(410).json({ status: 410, message: 'Maximum downloads reached' });
+        }
+
+        // Construct absolute file path
+        const uploadsRoot = path.resolve(process.cwd(), 'uploads');
+        const absolutePath = path.resolve(uploadsRoot, file.file_path);
+
+        // Check if file exists on disk
+        if (!fs.existsSync(absolutePath)) {
+            return res.status(404).json({ status: 404, message: 'File not found on server' });
+        }
+
+        // Increment download count
+        file.download_count += 1;
+        
+        // Mark as inactive if this is the last download
+        if (file.max_downloads && file.download_count >= file.max_downloads) {
+            file.active = false;
+        }
+        
+        await file.save();
+
+        // Send the file
+        res.download(absolutePath, file.file_name, (err) => {
+            if (err) {
+                console.error('Error downloading file:', err);
+                if (!res.headersSent) {
+                    return res.status(500).json({ status: 500, message: 'Error downloading file' });
+                }
+            }
+        });
+    } catch (err) {
+        console.error('Error in downloadFile:', err);
         return res.status(500).json({ status: 500, message: 'Internal server error' });
     }
 };
@@ -278,6 +352,7 @@ export const finalizeUpload = async (req, res) => {
                 description: description || '',
                 checksum: calculatedChecksum,
                 max_downloads: Number.isFinite(parsedMax) && parsedMax > 0 ? parsedMax : null,
+                active: parsedExpires && !isNaN(parsedExpires.valueOf()) ? (parsedExpires <= new Date() ? false : true) : true,
                 expires_at: parsedExpires && !isNaN(parsedExpires.valueOf()) ? parsedExpires : null,
             });
 

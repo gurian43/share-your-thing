@@ -1,4 +1,4 @@
-import { Box, Card, Flex, HStack, IconButton, Text, VStack } from '@chakra-ui/react'
+import { Box, Card, Flex, HStack, IconButton, Text, VStack, Badge } from '@chakra-ui/react'
 import { LuDownload, LuShare2, LuTrash2 } from 'react-icons/lu'
 import { formatBytes, getFileIcon } from '../../utils/fileUtils'
 
@@ -47,12 +47,16 @@ const FileList = ({ files, onOpenFile, onShare = noop, onDelete = noop, onDownlo
                             <Text w="120px" color="gray.400" fontSize="sm">{formatBytes(file.size)}</Text>
                             <Text w="120px" color="gray.400" fontSize="sm">{file.uploadedAt}</Text>
                             <Box w="100px">
-                                {file.shared && (
+                                {!file.active ? (
+                                    <Badge colorPalette="red" fontSize="xs">
+                                        Inactive
+                                    </Badge>
+                                ) : file.shared ? (
                                     <HStack spacing={1} color="purple.300" fontSize="sm">
                                         <LuShare2 size={14} />
                                         <Text>Shared</Text>
                                     </HStack>
-                                )}
+                                ) : null}
                             </Box>
 
                             <HStack w="120px" spacing={2} justify="flex-end">
