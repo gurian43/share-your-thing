@@ -27,6 +27,10 @@ const fileSchema = new mongoose.Schema({
         type: String, 
         default: null 
     },
+    encryption_iv: { 
+        type: String, 
+        default: null 
+    },
     description: { 
         type: String, 
         default: "" 

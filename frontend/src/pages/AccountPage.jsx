@@ -1,4 +1,4 @@
-import { Alert, Box, Button, Container, Dialog, Heading, HStack, Separator, Span, Text, VStack } from '@chakra-ui/react'
+import { Alert, Box, Button, Container, Dialog, Heading, HStack, Input, Separator, Span, Text, VStack } from '@chakra-ui/react'
 import Header from '../components/Header'
 import Footer from '../components/Footer'
 import { useState } from 'react';
@@ -14,6 +14,8 @@ const AccountPage = () => {
 
     const [activeSection, setActiveSection] = useState("overview");
     const [deleteDialogOpen, setDeleteDialogOpen] = useState(false);
+    const [deleteConfirmText, setDeleteConfirmText] = useState("");
+    const [usedStorage, setUsedStorage] = useState(user ? (user.current_storage / (1024 * 1024)).toFixed(2) : "0.00");
 
     const handleRecalculateStorage = async () => {
         const promise = fetch('/api/user/recalculate-storage', {
@@ -23,7 +25,7 @@ const AccountPage = () => {
 
         toaster.promise(promise, {
             success: (data) => {
-                user.current_storage = data.current_storage;
+                setUsedStorage((data.current_storage / (1024 * 1024)).toFixed(2));
                 return {
                     title: data.message || 'Storage usage recalculated successfully',
                 };
@@ -45,7 +47,7 @@ const AccountPage = () => {
                         <Heading color="white" size="xl">Account Overview</Heading>
                         <Text color="gray.400">Email: {user.email}</Text>
                         <Text color="gray.400">Account Type: {user.admin ? "Administrator" : "Standard User"}</Text>
-                        <Text color="gray.400">Storage Used: { (user.current_storage / (1024 * 1024)).toFixed(2) } MB / { user.admin ? "Unlimited" : (user.max_storage / (1024 * 1024)).toFixed(2) + " MB" }</Text>
+                        <Text color="gray.400">Storage Used: { usedStorage } MB / { user.admin ? "Unlimited" : (user.max_storage / (1024 * 1024)).toFixed(2) + " MB" }</Text>
                         <Text color="gray.400">Status: <Span color="green.400">{user.active ? "Active" : "Inactive"}</Span></Text>
                         <Button onClick={handleRecalculateStorage} _hover={{ bg: 'gray.800' }}>
                             Recalculate Storage Usage <LuRefreshCw />
@@ -96,6 +98,16 @@ const AccountPage = () => {
     }
 
     const confirmDelete = async () => {
+
+        if(deleteConfirmText !== "DELETE") {
+            toaster.create({
+                title: 'You must type "DELETE" to confirm account deletion.',
+                type: 'error',
+                duration: 3000,
+            });
+            return;
+        }
+
         setDeleteDialogOpen(false);
 
         const promise = fetch('/api/user/delete', {
@@ -150,6 +162,19 @@ const AccountPage = () => {
                             <Text color="gray.400" textAlign="center">
                                 This action cannot be undone. All your files and data will be permanently deleted.
                             </Text>
+                            <Text color="white" fontWeight={"bold"} textAlign="center">
+                                Please type "DELETE" to confirm.
+                            </Text>
+                            <Input
+                                placeholder="Type DELETE to confirm"
+                                bg="gray.700"
+                                borderColor="gray.600"
+                                color="white"
+                                _placeholder={{ color: 'gray.400' }}
+                                onChange={(e) => {
+                                    setDeleteConfirmText(e.target.value);
+                                }}
+                            />
                             <HStack spacing={4}>
                                 <Button variant="outline" color="white" _hover={{color: "black"}} onClick={() => setDeleteDialogOpen(false)}>Cancel</Button>
                                 <Button bg="red.600" color="white" onClick={confirmDelete} _hover={{ bg: 'red.500' }}>Delete Account</Button>

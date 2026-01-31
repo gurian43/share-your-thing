@@ -35,6 +35,7 @@ const UploadDialog = ({ isOpen, onClose, onUploaded }) => {
     const [uploadProgress, setUploadProgress] = useState(0)
     const [uploadedChunks, setUploadedChunks] = useState(0)
     const [totalChunks, setTotalChunks] = useState(0)
+    const [uploadStage, setUploadStage] = useState('idle') // idle, uploading, merging, encrypting
 
     const visibilityOptions = createListCollection({
         items: [
@@ -65,6 +66,7 @@ const UploadDialog = ({ isOpen, onClose, onUploaded }) => {
         setUploadProgress(0)
         setUploadedChunks(0)
         setTotalChunks(0)
+        setUploadStage('idle')
     }
 
     const closeAndReset = () => {
@@ -106,6 +108,7 @@ const UploadDialog = ({ isOpen, onClose, onUploaded }) => {
             setTotalChunks(chunks)
             setUploadedChunks(0)
             setUploadProgress(0)
+            setUploadStage('uploading')
 
             // check existing upload in local
             const uploadKey = `upload_${file.name}_${file.size}`
@@ -133,9 +136,11 @@ const UploadDialog = ({ isOpen, onClose, onUploaded }) => {
                         startChunk = uploadedChunks.length
                         
                         if (startChunk > 0) {
+                            setUploadProgress((startChunk / chunks) * 100)
+                            setUploadedChunks(startChunk)
                             toaster.update(toastId, {
-                                title: 'Resuming upload...',
-                                description: `Found ${startChunk} of ${chunks} chunks already uploaded`,
+                                title: 'Resuming Upload',
+                                description: `Continuing from ${Math.round((startChunk/chunks)*100)}% (${startChunk}/${chunks} chunks done)`,
                                 type: 'info',
                                 duration: 3000,
                             })
@@ -177,12 +182,6 @@ const UploadDialog = ({ isOpen, onClose, onUploaded }) => {
 
                 // Skip already uploaded chunks
                 if (uploadedChunks.includes(i)) {
-                    toaster.update(toastId, {
-                        title: 'Processing file...',
-                        description: `Verifying chunk ${uploaded}/${chunks} (${pct.toFixed(1)}%)`,
-                        type: 'loading',
-                        duration: 60000,
-                    })
                     continue;
                 }
 
@@ -194,8 +193,8 @@ const UploadDialog = ({ isOpen, onClose, onUploaded }) => {
                 chunkFormData.append('fileName', file.name);
 
                 toaster.update(toastId, {
-                    title: 'Uploading file...',
-                    description: `Uploading chunk ${uploaded}/${chunks} (${pct.toFixed(1)}%)`,
+                    title: 'Uploading...',
+                    description: `${Math.round(pct)}% complete (${uploaded}/${chunks} chunks)`,
                     type: 'loading',
                     duration: 60000,
                 })
@@ -214,12 +213,15 @@ const UploadDialog = ({ isOpen, onClose, onUploaded }) => {
             // Complete checksum
             const checksum = hasher.digest('hex');
 
+            setUploadStage('merging')
             toaster.update(toastId, {
-                title: 'Finalizing upload...',
-                description: 'Merging chunks and saving file',
+                title: 'Processing...',
+                description: 'Merging uploaded chunks',
                 type: 'loading',
                 duration: 60000,
             })
+
+            setUploadStage('encrypting')
 
             // Merge chunks
             const mergeRes = await fetch('/api/file/upload/finalize', {
@@ -244,15 +246,23 @@ const UploadDialog = ({ isOpen, onClose, onUploaded }) => {
                 throw new Error('Failed to finalize upload');
             }
 
+            toaster.update(toastId, {
+                title: 'Encrypting...',
+                description: 'Securing your file with AES-256 encryption',
+                type: 'loading',
+                duration: 60000,
+            })
+
             const mergeData = await mergeRes.json();
             onUploaded?.(mergeData.file);
 
-            // Clear upload state from localStorage on success
+            // Clear upload state from local
             localStorage.removeItem(uploadKey);
 
+            setUploadStage('idle')
             toaster.update(toastId, {
-                title: 'Success!',
-                description: `${file.name} uploaded successfully`,
+                title: 'Upload Complete!',
+                description: `${file.name} uploaded and encrypted successfully`,
                 type: 'success',
                 duration: 4000,
             })
@@ -260,6 +270,7 @@ const UploadDialog = ({ isOpen, onClose, onUploaded }) => {
             closeAndReset()
         } catch (err) {
             console.error('Upload error:', err)
+            setUploadStage('idle')
             toaster.update(toastId, {
                 title: 'Upload failed',
                 description: err?.message || 'An error occurred during upload',
@@ -433,25 +444,34 @@ const UploadDialog = ({ isOpen, onClose, onUploaded }) => {
                             <Separator borderColor="gray.600" />
                             {fileInfo && (
                                 <Box color="gray.300">
-                                    <Text fontSize="sm">Uploading: {fileInfo.name}</Text>
-                                    {submitting && totalChunks > 0 && (
-                                        <>
+                                    <Text fontSize="sm" fontWeight="500" mb={2}>{fileInfo.name}</Text>
+                                    {submitting && (
+                                        <Box>
+                                            <HStack justify="space-between" mb={2}>
+                                                <Text fontSize="sm" color="gray.300">
+                                                    {uploadStage === 'uploading' && `Uploading... ${Math.round(uploadProgress)}%`}
+                                                    {uploadStage === 'merging' && 'Merging chunks...'}
+                                                    {uploadStage === 'encrypting' && 'Encrypting...'}
+                                                    {uploadStage === 'finalizing' && 'Finalizing...'}
+                                                </Text>
+                                                {uploadStage === 'uploading' && (
+                                                    <Text fontSize="xs" color="gray.400">
+                                                        {uploadedChunks}/{totalChunks} chunks
+                                                    </Text>
+                                                )}
+                                            </HStack>
                                             <Progress.Root
-                                                value={uploadProgress}
+                                                value={uploadStage === 'uploading' ? uploadProgress : 100}
                                                 max={100}
                                                 size="sm"
                                                 colorPalette="purple"
-                                                mt={2}
-                                                css={{ '& > div > div': { transition: 'width 0.1s ease-in-out' } }}
+                                                css={{ '& > div > div': { transition: 'width 0.15s ease-in-out' } }}
                                             >
                                                 <Progress.Track>
                                                     <Progress.Range />
                                                 </Progress.Track>
                                             </Progress.Root>
-                                            <Text fontSize="xs" mt={1}>
-                                                Chunk {uploadedChunks} of {totalChunks} ({Math.round(uploadProgress)}%)
-                                            </Text>
-                                        </>
+                                        </Box>
                                     )}
                                 </Box>
                             )}

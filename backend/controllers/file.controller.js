@@ -3,6 +3,7 @@ import User from '../models/user.model.js';
 import fs from 'fs';
 import path from 'path';
 import Bcrypt from 'bcrypt';
+import { encryptFile, createDecipherStream } from '../services/encryptionService.js';
 
 export const getFileById = async (req, res) => {
     try {
@@ -109,7 +110,6 @@ export const downloadFile = async (req, res) => {
             return res.status(404).json({ status: 404, message: 'File not found' });
         }
 
-        // Check if file is active
         if (!file.active) {
             return res.status(410).json({ status: 410, message: 'File is no longer active' });
         }
@@ -123,41 +123,77 @@ export const downloadFile = async (req, res) => {
             }
         }
 
-        // Check if max downloads reached
+        // future password protection
+        if (file.password) {
+            const { password } = req.body;
+            
+            if (!password) {
+                return res.status(401).json({ 
+                    status: 401, 
+                    message: 'Password required',
+                    requiresPassword: true 
+                });
+            }
+
+            const passwordMatches = await Bcrypt.compare(password, file.password);
+            if (!passwordMatches) {
+                return res.status(401).json({ 
+                    status: 401, 
+                    message: 'Incorrect password' 
+                });
+            }
+        }
+
         if (file.max_downloads && file.download_count >= file.max_downloads) {
             file.active = false;
             await file.save();
             return res.status(410).json({ status: 410, message: 'Maximum downloads reached' });
         }
 
-        // Construct absolute file path
+        // absolute file path
         const uploadsRoot = path.resolve(process.cwd(), 'uploads');
         const absolutePath = path.resolve(uploadsRoot, file.file_path);
 
-        // Check if file exists on disk
         if (!fs.existsSync(absolutePath)) {
             return res.status(404).json({ status: 404, message: 'File not found on server' });
         }
 
-        // Increment download count
         file.download_count += 1;
         
-        // Mark as inactive if this is the last download
         if (file.max_downloads && file.download_count >= file.max_downloads) {
             file.active = false;
         }
         
         await file.save();
 
-        // Send the file
-        res.download(absolutePath, file.file_name, (err) => {
-            if (err) {
-                console.error('Error downloading file:', err);
+        // Decrypt and pipe the file
+        try {
+            const decipher = createDecipherStream(file.encryption_iv);
+            res.setHeader('Content-Disposition', `attachment; filename="${file.file_name}"`);
+            res.setHeader('Content-Type', 'application/octet-stream');
+            
+            const readStream = fs.createReadStream(absolutePath);
+            readStream.pipe(decipher).pipe(res);
+
+            readStream.on('error', (err) => {
+                console.error('Error reading encrypted file:', err);
                 if (!res.headersSent) {
                     return res.status(500).json({ status: 500, message: 'Error downloading file' });
                 }
+            });
+
+            decipher.on('error', (err) => {
+                console.error('Error decrypting file:', err);
+                if (!res.headersSent) {
+                    return res.status(500).json({ status: 500, message: 'Error decrypting file' });
+                }
+            });
+        } catch (err) {
+            console.error('Error in file download:', err);
+            if (!res.headersSent) {
+                return res.status(500).json({ status: 500, message: 'Error downloading file' });
             }
-        });
+        }
     } catch (err) {
         console.error('Error in downloadFile:', err);
         return res.status(500).json({ status: 500, message: 'Internal server error' });
@@ -313,6 +349,24 @@ export const finalizeUpload = async (req, res) => {
             // checksum
             const calculatedChecksum = checksum;
 
+            // Encrypt the file
+            let encryptionIv = null;
+            const encryptedFilePath = `${finalFilePath}.enc`;
+            try {
+                encryptionIv = await encryptFile(finalFilePath, encryptedFilePath);
+                await fs.promises.unlink(finalFilePath);
+            } catch (encryptErr) {
+                console.error('Error encrypting file:', encryptErr);
+                try {
+                    if (fs.existsSync(encryptedFilePath)) {
+                        await fs.promises.unlink(encryptedFilePath);
+                    }
+                } catch (e) {
+                    console.error('Error cleaning up encrypted file:', e);
+                }
+                throw new Error('Failed to encrypt file');
+            }
+
             // clean up temp
             try {
                 const files = await fs.promises.readdir(tempDir);
@@ -326,7 +380,7 @@ export const finalizeUpload = async (req, res) => {
            
             // create file record
             const storedRelPath = path
-                .relative(uploadsRoot, finalFilePath)
+                .relative(uploadsRoot, encryptedFilePath)
                 .split(path.sep)
                 .join('/');
 
@@ -351,6 +405,7 @@ export const finalizeUpload = async (req, res) => {
                 password: hashedPassword,
                 description: description || '',
                 checksum: calculatedChecksum,
+                encryption_iv: encryptionIv,
                 max_downloads: Number.isFinite(parsedMax) && parsedMax > 0 ? parsedMax : null,
                 active: parsedExpires && !isNaN(parsedExpires.valueOf()) ? (parsedExpires <= new Date() ? false : true) : true,
                 expires_at: parsedExpires && !isNaN(parsedExpires.valueOf()) ? parsedExpires : null,
@@ -371,6 +426,10 @@ export const finalizeUpload = async (req, res) => {
             try {
                 if (fs.existsSync(finalFilePath)) {
                     await fs.promises.unlink(finalFilePath);
+                }
+                const encryptedFilePath = `${finalFilePath}.enc`;
+                if (fs.existsSync(encryptedFilePath)) {
+                    await fs.promises.unlink(encryptedFilePath);
                 }
             } catch (e) {
                 console.error('Error cleaning up failed upload:', e);

@@ -10,6 +10,7 @@ import FileSummary from '../components/file/FileSummary'
 import FileInfoPanel from '../components/file/FileInfoPanel'
 import FileDescriptionCard from '../components/file/FileDescriptionCard'
 import FileDownloadActions from '../components/file/FileDownloadActions'
+import { downloadFile } from '../utils/downloadUtils'
 
 const formatBytes = (bytes) => {
     if (!bytes) return '0 B'
@@ -95,35 +96,26 @@ const FilePage = () => {
         })
     }
 
-    const handleDownload = async () => {
-        try {
-            window.location.href = `/api/file/${fileId}/download`;
+    const handleDownload = () => {
+        downloadFile(fileId);
 
+        setFile(prevFile => ({
+            ...prevFile,
+            download_count: prevFile.download_count + 1
+        }));
+
+        if (file.max_downloads) {
             setFile(prevFile => ({
                 ...prevFile,
-                download_count: prevFile.download_count + 1
+                active: prevFile.download_count + 1 < file.max_downloads
             }));
-
-            if (file.max_downloads) {
-                setFile(prevFile => ({
-                    ...prevFile,
-                    active: prevFile.download_count + 1 < file.max_downloads
-                }));
-            }
-            
-            toaster.create({
-                title: 'Download started!',
-                type: 'success',
-                duration: 3000,
-            });
-        } catch (error) {
-            console.error('Download error:', error);
-            toaster.create({
-                title: 'Failed to start download.',
-                type: 'error',
-                duration: 3000,
-            });
         }
+        
+        toaster.create({
+            title: 'Download started!',
+            type: 'success',
+            duration: 3000,
+        });
     };
 
     const handleShare = () => {

@@ -37,7 +37,7 @@ const DashboardControls = ({ viewMode, onViewChange, searchQuery, onSearch, onUp
                             <IconButton
                                 size="sm"
                                 variant={viewMode === 'grid' ? 'solid' : 'ghost'}
-                                colorScheme={viewMode === 'grid' ? 'purple' : 'gray'}
+                                colorPalette={viewMode === 'grid' ? 'purple' : 'gray'}
                                 onClick={() => onViewChange('grid')}
                             >
                                 <LuLayoutGrid />
@@ -45,7 +45,7 @@ const DashboardControls = ({ viewMode, onViewChange, searchQuery, onSearch, onUp
                             <IconButton
                                 size="sm"
                                 variant={viewMode === 'list' ? 'solid' : 'ghost'}
-                                colorScheme={viewMode === 'list' ? 'purple' : 'gray'}
+                                colorPalette={viewMode === 'list' ? 'purple' : 'gray'}
                                 onClick={() => onViewChange('list')}
                             >
                                 <LuList />
