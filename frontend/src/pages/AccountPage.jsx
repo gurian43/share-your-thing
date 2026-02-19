@@ -116,12 +116,8 @@ const AccountPage = () => {
         }).then(res => res.json());
 
         toaster.promise(promise, {
-            success: async (data) => {
-                await logout();
-                navigate('/');
-                return {
-                    title: data.message || 'Account deleted successfully',
-                };
+            success: {
+                title: 'Account deleted successfully',
             },
             error: {
                 title: 'Failed to delete account',
@@ -130,6 +126,11 @@ const AccountPage = () => {
                 title: 'Deleting account...',
             },
         });
+
+        if (await promise.then(res => res.success)) {
+            await logout();
+            navigate('/');
+        }
     };
 
     return (

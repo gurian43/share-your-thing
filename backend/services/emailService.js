@@ -20,7 +20,7 @@ export const sendNotificationEmail = async (user_email, code) => {
         subject: `Please verify your account for Share Your Thing`,
         html: `
             <h1>Your Verification Link</h1>
-            <p>${process.env.MODE == "development" ? "http://localhost:3000" : "https://dev.gurian.live"}/api/user/activate/${code}</p>
+            <p>${process.env.MODE == "development" ? "http://localhost:5173" : "https://" + process.env.HOSTNAME}/activate/${code}</p>
             <p>Please use this link to complete your verification process.</p>
         `
     };
