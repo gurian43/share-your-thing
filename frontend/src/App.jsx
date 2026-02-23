@@ -15,7 +15,6 @@ import AccountPage from './pages/AccountPage.jsx'
 import FilePage from './pages/FilePage.jsx'
 
 import './App.css'
-import ActivationPage from './pages/ActivationPage.jsx'
 
 function App() {
 
@@ -40,7 +39,6 @@ function App() {
                 <Route path="/file/:fileId" element={<FilePage />} />
                 <Route path="/faq" element={<FaqPage />} />
                 <Route path="/privacy" element={<PrivacyPage />} />
-                <Route path="/activate/:token" element={<ActivationPage />} />
             </Routes>
             <Toaster />
         </>

@@ -48,7 +48,7 @@ const LoginPage = () => {
         }
 
         setLoading(true);
-        const { success, message } = await login(email, password, captchaToken);
+        const { success, message, inactiveAccount, email: userEmail } = await login(email, password, captchaToken);
         if (success) {
             toaster.create({
                 title: message,
@@ -57,6 +57,15 @@ const LoginPage = () => {
                 isClosable: true,
             });
             navigate('/dashboard');
+            setLoading(false);
+        } else if (inactiveAccount) {
+            toaster.create({
+                title: 'Account not activated.',
+                type: 'info',
+                duration: 2000,
+                isClosable: true,
+            });
+            navigate(`/register?email=${encodeURIComponent(userEmail)}`);
             setLoading(false);
         } else {
             toaster.create({

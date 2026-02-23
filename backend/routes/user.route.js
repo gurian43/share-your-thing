@@ -1,5 +1,5 @@
 import express from 'express';
-import { registerUser, loginUser, logoutUser, activateUser, getUser, deleteUser, getPublicProfile, recalculateStorageUsage } from '../controllers/user.controller.js';
+import { registerUser, loginUser, logoutUser, activateUser, resendActivation, getUser, deleteUser, getPublicProfile, recalculateStorageUsage } from '../controllers/user.controller.js';
 import { getUserFiles } from '../controllers/file.controller.js';
 
 import requireAuth from '../services/protectedRoute.js';
@@ -9,6 +9,7 @@ const router = express.Router();
 router.post('/register', registerUser);
 router.post('/login', loginUser);
 router.post('/logout', logoutUser);
+router.post('/activate/resend', resendActivation);
 router.get('/activate/:token', activateUser);
 router.get('/me', requireAuth, getUser);
 router.get('/profile/:userId', getPublicProfile);

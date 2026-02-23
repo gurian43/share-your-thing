@@ -7,6 +7,8 @@ import crypto from 'crypto';
 import { verifyCaptcha } from '../services/turnstile.js';
 import { sendNotificationEmail } from '../services/emailService.js'
 
+const hashToken = (token) => crypto.createHash('sha256').update(token).digest('hex');
+
 export const registerUser = async (req, res) => {
     try {
         if(!req.body.password || !req.body.email || !req.body.username) {
@@ -68,13 +70,14 @@ export const registerUser = async (req, res) => {
 
         await newUser.save();
 
+        const rawActivationToken = crypto.randomBytes(16).toString('hex');
         const newActivation = new Activation({
             user_id: newUser._id,
-            activation_token: crypto.randomBytes(16).toString('hex')
+            activation_token_hash: hashToken(rawActivationToken)
         });
         await newActivation.save();
 
-        await sendNotificationEmail(newUser.email, newActivation.activation_token);
+        await sendNotificationEmail(newUser.email, rawActivationToken);
         return res.status(201).json({ status: 201, message: 'User registered successfully. Please check your email to activate your account.' });
     } catch (err) {
         console.error(err);
@@ -108,14 +111,14 @@ export const loginUser = async (req, res) => {
             return res.status(400).json({ status: 400, message: 'Invalid credentials' });
         }
 
-        if (!user.active) {
-            return res.status(403).json({ status: 403, message: 'Account not activated' });
-        }
-
         const isMatch = await Bcrypt.compare(password, user.passwordHash);
 
         if (!isMatch) {
             return res.status(400).json({ status: 400, message: 'Invalid credentials' });
+        }
+
+        if (!user.active) {
+            return res.status(403).json({ status: 403, message: 'Account not activated', email: user.email });
         }
 
         req.session.userId = user._id;
@@ -162,7 +165,7 @@ export const activateUser = async (req, res) => {
         const activationToken = req.params.token;
         if (!activationToken) return res.status(400).json({ status: 400, message: 'Missing activation token' });
 
-        const activationRecord = await Activation.findOne({ activation_token: activationToken });
+        const activationRecord = await Activation.findOne({ activation_token_hash: hashToken(activationToken) });
         if (!activationRecord) {
             return res.status(400).json({ status: 400, message: 'Invalid activation token or user already activated' });
         }
@@ -177,6 +180,40 @@ export const activateUser = async (req, res) => {
         await Activation.deleteOne({ _id: activationRecord._id });
 
         return res.json({ status: 200, message: 'Account activated' });
+    } catch (err) {
+        console.error(err);
+        return res.status(500).json({ status: 500, message: 'Server error' });
+    }
+};
+
+export const resendActivation = async (req, res) => {
+    try {
+        const { email } = req.body;
+
+        if (!email) {
+            return res.status(400).json({ status: 400, message: 'Missing email' });
+        }
+
+        const user = await User.findOne({ email });
+        if (!user) {
+            return res.json({ status: 200, message: 'If an account exists, a new activation link has been sent.' });
+        }
+
+        if (user.active) {
+            return res.json({ status: 200, message: 'Account already activated.' });
+        }
+
+        await Activation.deleteMany({ user_id: user._id });
+
+        const rawActivationToken = crypto.randomBytes(16).toString('hex');
+        const newActivation = new Activation({
+            user_id: user._id,
+            activation_token_hash: hashToken(rawActivationToken)
+        });
+        await newActivation.save();
+
+        await sendNotificationEmail(user.email, rawActivationToken);
+        return res.json({ status: 200, message: 'If an account exists, a new activation link has been sent.' });
     } catch (err) {
         console.error(err);
         return res.status(500).json({ status: 500, message: 'Server error' });

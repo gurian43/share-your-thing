@@ -49,13 +49,13 @@ export const AuthProvider = ({ children }) => {
 
             if (res.ok) {
                 setUser(data.user);
-                return {success: true, message: data.message || 'Login successful'};
+                return {success: true, message: data.message || 'Login successful', status: 200};
             } else {
                 setUser(null);
-                return {success: false, message: data.message || 'Login request failed'};
+                return {success: false, message: data.message || 'Login request failed', status: res.status, email: data.email, inactiveAccount: res.status === 403 && data.message?.includes('not activated')};
             }
         } catch {
-            return {success: false, message: 'Server Error'};
+            return {success: false, message: 'Server Error', status: 500};
         }
     };
 

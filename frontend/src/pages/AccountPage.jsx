@@ -127,7 +127,8 @@ const AccountPage = () => {
             },
         });
 
-        if (await promise.then(res => res.success)) {
+        const data = await promise;
+        if (data.status === 200) {
             await logout();
             navigate('/');
         }
