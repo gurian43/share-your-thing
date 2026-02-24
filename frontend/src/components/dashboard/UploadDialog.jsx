@@ -13,6 +13,7 @@ import {
     Progress,
     Select,
     Separator,
+    Steps,
     Text,
     Textarea,
     VStack,
@@ -282,12 +283,33 @@ const UploadDialog = ({ isOpen, onClose, onUploaded }) => {
         }
     }
 
+    const stepItems = [
+        { title: 'Select File' },
+        { title: 'Configure & Upload' },
+    ];
+    const stepIndex = Math.max(0, Math.min(1, step - 1));
+
     return (
         <Dialog.Root open={isOpen} onOpenChange={(e) => { if (!e.open) closeAndReset() }} zIndex={9999}>
             <Dialog.Backdrop />
             <Dialog.Content position="fixed" top="40%" left="50%" transform="translate(-50%, -50%)" maxW="600px" bg="gray.800">
-                <Dialog.Header>
-                    <Dialog.Title color="white">{step === 1 ? 'Upload File' : 'File Settings'}</Dialog.Title>
+                <Dialog.Header display="flex" flexDirection="column" alignItems="center">
+                    <Dialog.Title color="white">Upload File</Dialog.Title>
+                    <Steps.Root colorPalette="purple" step={stepIndex} count={stepItems.length} size="sm" w="full" mt={3}>
+                        <Steps.List>
+                            {stepItems.map((item, index) => (
+                                <Steps.Item key={item.title} index={index}>
+                                    <Steps.Trigger cursor="default">
+                                        <Steps.Indicator>
+                                            <Steps.Number color="white" />
+                                        </Steps.Indicator>
+                                        <Steps.Title color="white" fontSize="sm">{item.title}</Steps.Title>
+                                    </Steps.Trigger>
+                                    {index < stepItems.length - 1 && <Steps.Separator />}
+                                </Steps.Item>
+                            ))}
+                        </Steps.List>
+                    </Steps.Root>
                 </Dialog.Header>
                 <Dialog.Body>
                     {step === 1 ? (
@@ -485,7 +507,7 @@ const UploadDialog = ({ isOpen, onClose, onUploaded }) => {
                                 Cancel
                             </Button>
                             {step === 2 && (
-                                <Button variant="ghost" onClick={handleBack} disabled={submitting}>Back</Button>
+                                <Button variant="ghost" color="white" _hover={{ color: 'black' }} onClick={handleBack} disabled={submitting}>Back</Button>
                             )}
                         </HStack>
                         {step === 1 ? (
