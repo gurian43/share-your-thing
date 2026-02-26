@@ -123,23 +123,22 @@ export const downloadFile = async (req, res) => {
             }
         }
 
-        // future password protection
         if (file.password) {
-            const { password } = req.body;
-            
-            if (!password) {
-                return res.status(401).json({ 
-                    status: 401, 
+            const suppliedPassword = req.body?.password || req.headers['x-file-password'];
+
+            if (!suppliedPassword) {
+                return res.status(401).json({
+                    status: 401,
                     message: 'Password required',
-                    requiresPassword: true 
+                    requiresPassword: true
                 });
             }
 
-            const passwordMatches = await Bcrypt.compare(password, file.password);
+            const passwordMatches = await Bcrypt.compare(String(suppliedPassword), file.password);
             if (!passwordMatches) {
-                return res.status(401).json({ 
-                    status: 401, 
-                    message: 'Incorrect password' 
+                return res.status(401).json({
+                    status: 401,
+                    message: 'Incorrect password'
                 });
             }
         }
@@ -171,6 +170,7 @@ export const downloadFile = async (req, res) => {
             const decipher = createDecipherStream(file.encryption_iv);
             res.setHeader('Content-Disposition', `attachment; filename="${file.file_name}"`);
             res.setHeader('Content-Type', 'application/octet-stream');
+            res.setHeader('Content-Length', file.file_size);
             
             const readStream = fs.createReadStream(absolutePath);
             readStream.pipe(decipher).pipe(res);

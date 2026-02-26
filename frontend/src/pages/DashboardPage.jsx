@@ -14,7 +14,6 @@ import ShareDialog from '../components/dashboard/ShareDialog'
 import DeleteDialog from '../components/dashboard/DeleteDialog'
 import { toaster } from '../components/ui/toaster'
 import { formatBytes, getFileType } from '../utils/fileUtils'
-import { downloadFile } from '../utils/downloadUtils'
 
 const DashboardPage = () => {
     const navigate = useNavigate()
@@ -179,12 +178,7 @@ const DashboardPage = () => {
     const handleOpenFile = (file) => navigate(`/file/${file.id}`)
 
     const handleDownload = (file) => {
-        downloadFile(file.id);
-        toaster.create({
-            title: 'Download started!',
-            type: 'success',
-            duration: 3000,
-        });
+        navigate(`/file/${file.id}`, { state: { autoDownload: true } })
     }
 
     const hasResults = filteredFiles.length > 0

@@ -1,5 +1,5 @@
-import { useEffect, useState } from 'react'
-import { useParams, useNavigate } from 'react-router-dom'
+import { useEffect, useRef, useState } from 'react'
+import { useParams, useNavigate, useLocation } from 'react-router-dom'
 import { Box, Container, VStack, Button, Text, Grid } from '@chakra-ui/react'
 import { LuArrowLeft } from 'react-icons/lu'
 import Header from '../components/Header'
@@ -10,7 +10,8 @@ import FileSummary from '../components/file/FileSummary'
 import FileInfoPanel from '../components/file/FileInfoPanel'
 import FileDescriptionCard from '../components/file/FileDescriptionCard'
 import FileDownloadActions from '../components/file/FileDownloadActions'
-import { downloadFile } from '../utils/downloadUtils'
+import DownloadPasswordDialog from '../components/file/DownloadPasswordDialog'
+import { createDownloadTask } from '../utils/downloadUtils'
 
 const formatBytes = (bytes) => {
     if (!bytes) return '0 B'
@@ -24,9 +25,16 @@ const FilePage = () => {
     const { user } = useAuth()
     const { fileId } = useParams()
     const navigate = useNavigate()
+    const location = useLocation()
     const [file, setFile] = useState(null)
     const [loading, setLoading] = useState(true)
     const [timeRemaining, setTimeRemaining] = useState('')
+    const [downloadState, setDownloadState] = useState('idle')
+    const [passwordDialogOpen, setPasswordDialogOpen] = useState(false)
+    const [downloadPassword, setDownloadPassword] = useState('')
+    const [downloadProgress, setDownloadProgress] = useState(null)
+    const downloadTaskRef = useRef(null)
+    const autoDownloadTriggeredRef = useRef(false)
 
     useEffect(() => {
         document.title = 'File - Share Your Thing'
@@ -49,6 +57,15 @@ const FilePage = () => {
             setLoading(false)
         })
     }, [fileId])
+
+    useEffect(() => {
+        if (!file || autoDownloadTriggeredRef.current) return
+        if (!location.state?.autoDownload) return
+
+        autoDownloadTriggeredRef.current = true
+        handleDownload()
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+    }, [file, location.state])
 
     useEffect(() => {
         if (!file?.expires_at) return
@@ -96,27 +113,105 @@ const FilePage = () => {
         })
     }
 
-    const handleDownload = () => {
-        downloadFile(fileId);
+    const startDownload = async (password) => {
+        if (!file || !file.active || downloadState === 'downloading') return false
 
-        setFile(prevFile => ({
-            ...prevFile,
-            download_count: prevFile.download_count + 1
-        }));
+        setDownloadProgress(null)
+        const task = createDownloadTask({
+            fileId,
+            fileName: file.file_name,
+            checksum: file.checksum,
+            password,
+            fileSize: file.file_size,
+            onProgress: (progress) => {
+                setDownloadProgress(progress)
+            },
+        })
 
-        if (file.max_downloads) {
+        downloadTaskRef.current = task
+        setDownloadState('downloading')
+
+        let success = false
+        try {
+            await task.start()
+
             setFile(prevFile => ({
                 ...prevFile,
-                active: prevFile.download_count + 1 < file.max_downloads
-            }));
+                download_count: prevFile.download_count + 1
+            }))
+
+            if (file.max_downloads) {
+                setFile(prevFile => ({
+                    ...prevFile,
+                    active: prevFile.download_count + 1 < file.max_downloads
+                }))
+            }
+
+            toaster.create({
+                title: 'Download ready!',
+                type: 'success',
+                duration: 3000,
+            })
+            success = true
+        } catch (err) {
+            if (err?.name !== 'AbortError') {
+                toaster.create({
+                    title: err?.message || 'Download failed',
+                    type: 'error',
+                    duration: 4000,
+                })
+            }
+        } finally {
+            downloadTaskRef.current = null
+            setDownloadState('idle')
+            setDownloadProgress(null)
         }
-        
+
+        return success
+    }
+
+    const handleDownload = () => {
+        if (!file || !file.active) return
+
+        if (file.password) {
+            setPasswordDialogOpen(true)
+            return
+        }
+
+        startDownload()
+    }
+
+    const handlePasswordDownload = async () => {
+        const password = downloadPassword
+        setPasswordDialogOpen(false)
+        setDownloadPassword('')
+        await startDownload(password)
+    }
+
+    const handlePause = () => {
+        if (downloadState !== 'downloading') return
+        downloadTaskRef.current?.pause()
+        setDownloadState('paused')
+    }
+
+    const handleResume = () => {
+        if (downloadState !== 'paused') return
+        downloadTaskRef.current?.resume()
+        setDownloadState('downloading')
+    }
+
+    const handleCancel = () => {
+        if (downloadState !== 'downloading' && downloadState !== 'paused') return
+        downloadTaskRef.current?.cancel()
+        downloadTaskRef.current = null
+        setDownloadState('idle')
+        setDownloadProgress(null)
         toaster.create({
-            title: 'Download started!',
-            type: 'success',
-            duration: 3000,
-        });
-    };
+            title: 'Download cancelled',
+            type: 'info',
+            duration: 2000,
+        })
+    }
 
     const handleShare = () => {
         const shareLink = `${window.location.origin}/file/${file._id}`
@@ -183,9 +278,29 @@ const FilePage = () => {
                         <FileDescriptionCard description={file.description} />
                     </Grid>
 
-                    <FileDownloadActions file={file} onDownload={handleDownload} />
+                    <FileDownloadActions
+                        file={file}
+                        onDownload={handleDownload}
+                        onPause={handlePause}
+                        onResume={handleResume}
+                        onCancel={handleCancel}
+                        downloadState={downloadState}
+                        downloadProgress={downloadProgress}
+                    />
                 </VStack>
             </Container>
+
+            <DownloadPasswordDialog
+                isOpen={passwordDialogOpen}
+                password={downloadPassword}
+                onPasswordChange={setDownloadPassword}
+                onCancel={() => {
+                    setPasswordDialogOpen(false)
+                    setDownloadPassword('')
+                }}
+                onConfirm={handlePasswordDownload}
+                isSubmitting={downloadState === 'downloading'}
+            />
 
             <Footer />
         </Box>

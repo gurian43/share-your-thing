@@ -24,7 +24,7 @@ router.get('/upload/status', requireAuth, getUploadStatus);
 router.post('/upload/chunk', requireAuth, chunkUpload.single('chunk'), uploadChunk);
 router.post('/upload/finalize', requireAuth, finalizeUpload);
 router.get('/', requireAuth, getUserFiles);
-router.get('/:fileId/download', downloadFile);
+router.post('/:fileId/download', downloadFile);
 router.get('/:fileId', getFileById);
 router.delete('/:fileId', requireAuth, deleteFile);
 

@@ -1,6 +1,6 @@
 import { Box, Card, Flex, Grid, HStack, IconButton, Separator, Text, VStack, Badge } from '@chakra-ui/react'
 import { LuDownload, LuShare2, LuTrash2 } from 'react-icons/lu'
-import { formatBytes, getFileIcon } from '../../utils/fileUtils'
+import { formatBytes, getFileIcon, trimFileName } from '../../utils/fileUtils'
 
 const noop = () => {}
 
@@ -36,8 +36,9 @@ const FileGrid = ({ files, onOpenFile, onShare = noop, onDelete = noop, onDownlo
                                     fontSize="sm"
                                     fontWeight="medium"
                                     noOfLines={1}
+                                    title={trimFileName(file.name, 25).trimmed ? file.name : undefined}
                                 >
-                                    {file.name}
+                                    {trimFileName(file.name, 25).name}
                                 </Text>
                                 <HStack spacing={2} fontSize="xs" color="gray.400">
                                     <Text>{formatBytes(file.size)}</Text>

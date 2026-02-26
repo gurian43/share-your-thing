@@ -1,6 +1,6 @@
 import { Box, Card, Flex, HStack, IconButton, Text, VStack, Badge } from '@chakra-ui/react'
 import { LuDownload, LuShare2, LuTrash2 } from 'react-icons/lu'
-import { formatBytes, getFileIcon } from '../../utils/fileUtils'
+import { formatBytes, getFileIcon, trimFileName } from '../../utils/fileUtils'
 
 const noop = () => {}
 
@@ -41,7 +41,7 @@ const FileList = ({ files, onOpenFile, onShare = noop, onDelete = noop, onDownlo
                                 <Box color="purple.300">
                                     {getFileIcon(file.type)}
                                 </Box>
-                                <Text color="white" fontSize="sm">{file.name}</Text>
+                                <Text color="white" fontSize="sm" title={trimFileName(file.name, 40).trimmed ? file.name : undefined}>{trimFileName(file.name, 40).name}</Text>
                             </HStack>
 
                             <Text w="120px" color="gray.400" fontSize="sm">{formatBytes(file.size)}</Text>
