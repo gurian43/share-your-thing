@@ -13,6 +13,7 @@ import FaqPage from './pages/FaqPage.jsx'
 import PrivacyPage from './pages/PrivacyPage.jsx'
 import AccountPage from './pages/AccountPage.jsx'
 import FilePage from './pages/FilePage.jsx'
+import PasswordResetPage from './pages/PasswordResetPage.jsx'
 
 import './App.css'
 
@@ -35,6 +36,10 @@ function App() {
                         <AccountPage />
                     </ProtectedRoute>
                 } />
+                <Route path="/reset-password" element={<PasswordResetPage />} />
+                <Route path="/reset-password/:token" element={<PasswordResetPage />} />
+                <Route path="/reset" element={<PasswordResetPage />} />
+                <Route path="/reset/:token" element={<PasswordResetPage />} />
                 <Route path="/profile/:userid" element={<ProfilePage />} />
                 <Route path="/file/:fileId" element={<FilePage />} />
                 <Route path="/faq" element={<FaqPage />} />

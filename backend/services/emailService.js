@@ -13,7 +13,7 @@ export const createTransporter = () => {
     console.log('Email transporter created');
 }
 
-export const sendNotificationEmail = async (user_email, code) => {
+export const sendTokenEmail = async (user_email, code) => {
     const mailOptions = {
         from: process.env.EMAIL_USER,
         to: user_email,
@@ -27,8 +27,28 @@ export const sendNotificationEmail = async (user_email, code) => {
 
     try {
         await transporter.sendMail(mailOptions);
-        console.log('Notification email sent successfully');
+        console.log('Token email sent successfully');
     } catch (error) {
-        console.error('Failed to send notification email:', error);
+        console.error('Failed to send token email:', error);
+    }
+};
+
+export const sendResetEmail = async (user_email, code) => {
+    const mailOptions = {
+        from: process.env.EMAIL_USER,
+        to: user_email,
+        subject: `Password Reset for Share Your Thing`,
+        html: `
+            <h1>Password Reset</h1>
+            <p>${process.env.MODE == "development" ? "http://localhost:5173" : "https://" + process.env.HOSTNAME}/reset-password/${code}</p>
+            <p>Please use this link to reset your password.</p>
+        `
+    };
+
+    try {
+        await transporter.sendMail(mailOptions);
+        console.log('Reset email sent successfully');
+    } catch (error) {
+        console.error('Failed to send reset email:', error);
     }
 };

@@ -123,9 +123,21 @@ const LoginPage = () => {
                             />
                         </Field.Root>
                         <Field.Root>
+                            <Container display={"flex"} justifyContent={"space-between"} p={0} mb={1}>
                             <Field.Label color="gray.300">
                                 Password
                             </Field.Label>
+                            <ChakraLink 
+                                color="purple.400" 
+                                onClick={() => navigate('/reset-password')}
+                                cursor="pointer"
+                                _hover={{ color: 'purple.300' }}
+                                alignSelf={"flex-end"}
+                                fontSize="sm"
+                            >
+                                Forgot your password?
+                            </ChakraLink>
+                            </Container>
                             <PasswordInput
                                 value={password}
                                 onChange={(e) => {handlePasswordChange(e.target.value)}}
