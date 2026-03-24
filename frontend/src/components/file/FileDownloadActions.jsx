@@ -1,6 +1,6 @@
 import { Button, HStack, VStack, Text, Progress } from '@chakra-ui/react'
 import { LuDownload, LuPause, LuPlay, LuX } from 'react-icons/lu'
-import { Tooltip } from '../ui/Tooltip'
+import { Tooltip } from '../ui/tooltip'
 
 import { formatBytes } from '../../utils/fileUtils'
 
