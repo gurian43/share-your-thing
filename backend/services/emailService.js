@@ -1,5 +1,7 @@
 import nodemailer from 'nodemailer';
 
+const APP_ENV = process.env.NODE_ENV || process.env.MODE || 'development';
+
 let transporter;
 
 export const createTransporter = () => {
@@ -20,7 +22,7 @@ export const sendTokenEmail = async (user_email, code) => {
         subject: `Please verify your account for Share Your Thing`,
         html: `
             <h1>Your Verification Link</h1>
-            <p>${process.env.MODE == "development" ? "http://localhost:5173" : "https://" + process.env.HOSTNAME}/register?token=${code}</p>
+            <p>${APP_ENV === "development" ? "http://localhost:5173" : "https://" + process.env.HOSTNAME}/register?token=${code}</p>
             <p>Please use this link to complete your verification process.</p>
         `
     };
@@ -40,7 +42,7 @@ export const sendResetEmail = async (user_email, code) => {
         subject: `Password Reset for Share Your Thing`,
         html: `
             <h1>Password Reset</h1>
-            <p>${process.env.MODE == "development" ? "http://localhost:5173" : "https://" + process.env.HOSTNAME}/reset-password/${code}</p>
+            <p>${APP_ENV === "development" ? "http://localhost:5173" : "https://" + process.env.HOSTNAME}/reset-password/${code}</p>
             <p>Please use this link to reset your password.</p>
         `
     };

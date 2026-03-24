@@ -9,6 +9,7 @@ import { verifyCaptcha } from '../services/turnstile.js';
 import { sendResetEmail as sendPasswordResetEmail, sendTokenEmail } from '../services/emailService.js'
 
 const hashToken = (token) => crypto.createHash('sha256').update(token).digest('hex');
+const APP_ENV = process.env.NODE_ENV || process.env.MODE || process.env.mode || 'development';
 
 const invalidateUserSessions = async (userId, currentSessionId = null) => {
     const sessionQuery = {
@@ -41,7 +42,7 @@ export const registerUser = async (req, res) => {
             return res.status(400).json({ status: 400, message: 'Missing required fields' });
         }
 
-        if(process.env.mode !== "development") {
+        if(APP_ENV !== "development") {
             const captchaResult = await verifyCaptcha(
                 req.body.captchaToken,
                 req.headers['cf-connecting-ip'] || req.headers['x-forwarded-for'] || req.socket.remoteAddress
@@ -117,7 +118,7 @@ export const loginUser = async (req, res) => {
             return res.status(400).json({ status: 400, message: 'Missing fields' });
         }
 
-        if(process.env.MODE !== "development") {
+        if(APP_ENV !== "development") {
             const captchaResult = await verifyCaptcha(
                 req.body.captchaToken,
                 req.headers['cf-connecting-ip'] || req.headers['x-forwarded-for'] || req.socket.remoteAddress

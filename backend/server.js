@@ -16,6 +16,9 @@ import fileRoutes from './routes/file.route.js';
 
 dotenv.config();
 
+const APP_ENV = process.env.NODE_ENV || process.env.MODE || 'development';
+const IS_PRODUCTION = APP_ENV === 'production';
+
 const __dirname = path.resolve();
 
 const app = express();
@@ -80,7 +83,7 @@ app.listen(PORT, () => {
     console.log(`Server is running on port ${PORT}`);
 });
 
-if (process.env.MODE === 'production') {
+if (IS_PRODUCTION) {
     app.use(express.static(path.resolve(__dirname, 'frontend', 'dist')));
 
     app.get(/^(?!\/api\/)..*/, (req, res) => {
@@ -88,7 +91,7 @@ if (process.env.MODE === 'production') {
     });
 } else {
     app.get("/", (req, res) => {
-        res.send(`API is running... in development mode PORT ${PORT} | <a href="http://localhost:5173">http://localhost:5173</a>`);
+        res.send(`API is running... in ${APP_ENV} mode PORT ${PORT} | <a href="http://localhost:5173">http://localhost:5173</a>`);
     });
 }
 

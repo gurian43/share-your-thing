@@ -1,3 +1,5 @@
+const APP_ENV = process.env.NODE_ENV || process.env.MODE || 'development';
+
 const captchaVerifyResponse = async (token, ip) => {
     const res = await fetch('https://challenges.cloudflare.com/turnstile/v0/siteverify', {
         method: 'POST',
@@ -5,7 +7,7 @@ const captchaVerifyResponse = async (token, ip) => {
             'Content-Type': 'application/x-www-form-urlencoded'
         },
         body: new URLSearchParams({
-            secret: process.env.MODE === 'development' ? process.env.TURNSTILE_SECRET_KEY_DEV : process.env.TURNSTILE_SECRET_KEY,
+            secret: APP_ENV === 'development' ? process.env.TURNSTILE_SECRET_KEY_DEV : process.env.TURNSTILE_SECRET_KEY,
             response: token,
             remoteip: ip || ''
         })
