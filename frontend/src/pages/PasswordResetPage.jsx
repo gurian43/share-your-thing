@@ -50,7 +50,6 @@ const PasswordResetPage = () => {
         }
 
         let isCancelled = false;
-
         const validateToken = async () => {
         setTokenStatus('checking');
         setTokenMessage('');

@@ -1,11 +1,14 @@
-import { Alert, Box, Button, Container, Dialog, Heading, HStack, Input, Separator, Span, Text, VStack } from '@chakra-ui/react'
+import { Box, Button, Container, Heading, HStack, Separator, VStack } from '@chakra-ui/react'
 import Header from '../components/Header'
 import Footer from '../components/Footer'
 import { useState } from 'react';
 import { toaster } from '../components/ui/toaster';
 import { useNavigate } from 'react-router-dom';
 import { useAuth } from '../context/AuthContext';
-import { LuRefreshCw } from 'react-icons/lu';
+import AccountOverviewSection from '../components/account/AccountOverviewSection';
+import DeleteAccountSection from '../components/account/DeleteAccountSection';
+import DeleteAccountDialog from '../components/account/DeleteAccountDialog';
+import ChangePasswordDialog from '../components/account/ChangePasswordDialog';
 
 
 const AccountPage = () => {
@@ -14,8 +17,8 @@ const AccountPage = () => {
 
     const [activeSection, setActiveSection] = useState("overview");
     const [deleteDialogOpen, setDeleteDialogOpen] = useState(false);
-    const [deleteConfirmText, setDeleteConfirmText] = useState("");
     const [usedStorage, setUsedStorage] = useState(user ? (user.current_storage / (1024 * 1024)).toFixed(2) : "0.00");
+    const [passwordDialogOpen, setPasswordDialogOpen] = useState(false);
 
     const handleRecalculateStorage = async () => {
         const promise = fetch('/api/user/recalculate-storage', {
@@ -43,32 +46,15 @@ const AccountPage = () => {
         switch (activeSection) {
             case 'overview':
                 return (
-                    <VStack align="flex-start" spacing={6}>
-                        <Heading color="white" size="xl">Account Overview</Heading>
-                        <Text color="gray.400">Email: {user.email}</Text>
-                        <Text color="gray.400">Account Type: {user.admin ? "Administrator" : "Standard User"}</Text>
-                        <Text color="gray.400">Storage Used: { usedStorage } MB / { user.admin ? "Unlimited" : (user.max_storage / (1024 * 1024)).toFixed(2) + " MB" }</Text>
-                        <Text color="gray.400">Status: <Span color="green.400">{user.active ? "Active" : "Inactive"}</Span></Text>
-                        <Button onClick={handleRecalculateStorage} _hover={{ bg: 'gray.800' }}>
-                            Recalculate Storage Usage <LuRefreshCw />
-                        </Button>
-                    </VStack>
+                    <AccountOverviewSection
+                        user={user}
+                        usedStorage={usedStorage}
+                        onRecalculateStorage={handleRecalculateStorage}
+                    />
                 )
             case 'delete':
                 return (
-                    <VStack align="flex-start" spacing={6}>
-                        <Heading color="white" size="xl">Delete Account</Heading>
-                        <Alert.Root colorPalette="red" status="warning" variant="solid">
-                            <Alert.Indicator />
-                            <Alert.Content>
-                                <Alert.Title>Action is irreversible</Alert.Title>
-                                <Alert.Description>
-                                    Deleting your account will permanently remove all your data from our servers, including files. This action cannot be undone.
-                                </Alert.Description>
-                            </Alert.Content>
-                        </Alert.Root>
-                        <Button variant="outline" colorPalette={"red"} onClick={() => setDeleteDialogOpen(true)}>Delete My Account</Button>
-                    </VStack>
+                    <DeleteAccountSection onOpenDeleteDialog={() => setDeleteDialogOpen(true)} />
                 )
         }
     }
@@ -98,18 +84,6 @@ const AccountPage = () => {
     }
 
     const confirmDelete = async () => {
-
-        if(deleteConfirmText !== "DELETE") {
-            toaster.create({
-                title: 'You must type "DELETE" to confirm account deletion.',
-                type: 'error',
-                duration: 3000,
-            });
-            return;
-        }
-
-        setDeleteDialogOpen(false);
-
         const promise = fetch('/api/user/delete', {
             method: 'DELETE',
             credentials: 'include',
@@ -143,6 +117,7 @@ const AccountPage = () => {
                     <Container flex={1}>
                         <VStack>
                             <Button w={"100%"} color="white" _hover={{ bg: 'gray.800' }}onClick={() => handleSelect("overview")}>Account Overview</Button>
+                            <Button w={"100%"} color="white" _hover={{ bg: 'gray.800' }} onClick={() => setPasswordDialogOpen(true)}>Change Password</Button>
                             <Button w={"100%"} color="white" _hover={{ bg: 'gray.800' }} onClick={() => handleSelect("delete")}>Delete Account</Button>
                             <Button w={"100%"} color="red.300" _hover={{ bg: 'red.800' }} onClick={handleLogout}>Logout</Button>
                         </VStack>
@@ -153,38 +128,16 @@ const AccountPage = () => {
                     </Container>
                 </HStack>
             </Container>
-            <Dialog.Root open={deleteDialogOpen} onOpenChange={(e) => setDeleteDialogOpen(e.open)} zIndex={9999}>
-                <Dialog.Backdrop />
-                <Dialog.Content position="fixed" top="40%" left="50%" transform="translate(-50%, -50%)" maxW="500px" bg="gray.800">
-                    <Dialog.Body>
-                        <VStack spacing={6} align="center" justify="center" py={8}>
-                            <Heading size="lg" color="white" textAlign="center">
-                                Are you really sure you want to delete your account?
-                            </Heading>
-                            <Text color="gray.400" textAlign="center">
-                                This action cannot be undone. All your files and data will be permanently deleted.
-                            </Text>
-                            <Text color="white" fontWeight={"bold"} textAlign="center">
-                                Please type "DELETE" to confirm.
-                            </Text>
-                            <Input
-                                placeholder="Type DELETE to confirm"
-                                bg="gray.700"
-                                borderColor="gray.600"
-                                color="white"
-                                _placeholder={{ color: 'gray.400' }}
-                                onChange={(e) => {
-                                    setDeleteConfirmText(e.target.value);
-                                }}
-                            />
-                            <HStack spacing={4}>
-                                <Button variant="outline" color="white" _hover={{color: "black"}} onClick={() => setDeleteDialogOpen(false)}>Cancel</Button>
-                                <Button bg="red.600" color="white" onClick={confirmDelete} _hover={{ bg: 'red.500' }}>Delete Account</Button>
-                            </HStack>
-                        </VStack>
-                    </Dialog.Body>
-                </Dialog.Content>
-            </Dialog.Root>
+            <DeleteAccountDialog
+                isOpen={deleteDialogOpen}
+                onClose={() => setDeleteDialogOpen(false)}
+                onConfirmDelete={confirmDelete}
+            />
+
+            <ChangePasswordDialog
+                isOpen={passwordDialogOpen}
+                onClose={() => setPasswordDialogOpen(false)}
+            />
 
             <Footer />
         </Box>
