@@ -33,7 +33,11 @@ app.use(helmet({
         useDefaults: true,
         directives: {
             "default-src": ["'self'"],
-            "script-src": ["'self'", "https://challenges.cloudflare.com"],
+            "script-src": [
+                "'self'", 
+                "https://challenges.cloudflare.com", 
+                "'wasm-unsafe-eval'"
+            ],
             "frame-src": ["'self'", "https://challenges.cloudflare.com"],
             "style-src": ["'self'", "'unsafe-inline'"],
             "font-src": ["'self'", "data:", "https://challenges.cloudflare.com"],
