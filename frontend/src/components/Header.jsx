@@ -68,11 +68,16 @@ const Header = ({variant}) => {
                         </Portal>
                     </Menu.Root>
                 ) : (
-                    <Tabs.Root value={getCurrentPage()} onValueChange={(details) => handleNavigation(details.value)} colorPalette="purple" maxW="100%">
+                    <Tabs.Root 
+                        variant={"enclosed"}
+                        value={getCurrentPage()} 
+                        onValueChange={(details) => handleNavigation(details.value)}
+                        maxW="100%"
+                    >
                         <Tabs.List display="flex" flexWrap="wrap">
-                            <Tabs.Trigger value="home" color="white">Home</Tabs.Trigger>
-                            <Tabs.Trigger value="dashboard" color="white">Dashboard</Tabs.Trigger>
-                            <Tabs.Trigger value="browse" color="white">Browse</Tabs.Trigger>
+                            <Tabs.Trigger value="home" color="white" _selected={{ bg: 'purple.600'}}>Home</Tabs.Trigger>
+                            <Tabs.Trigger value="dashboard" color="white" _selected={{ bg: 'purple.600'}}>Dashboard</Tabs.Trigger>
+                            <Tabs.Trigger value="browse" color="white" _selected={{ bg: 'purple.600'}}>Browse</Tabs.Trigger>
                         </Tabs.List>
                     </Tabs.Root>
                 )
@@ -127,9 +132,8 @@ const Header = ({variant}) => {
                 isMobile ? null : (
                     <Tabs.Root value={getCurrentPage()} onValueChange={(details) => handleNavigation(details.value)} colorPalette="purple" maxW="100%">
                         <Tabs.List display="flex" flexWrap="wrap">
-                            <Tabs.Trigger value="home" color="white">Home</Tabs.Trigger>
-                            <Tabs.Trigger value="dashboard" disabled color="white">Dashboard</Tabs.Trigger>
-                            <Tabs.Trigger value="browse" color="white">Browse</Tabs.Trigger>
+                            <Tabs.Trigger value="home" color="white" _selected={{ bg: 'purple.600'}}>Home</Tabs.Trigger>
+                            <Tabs.Trigger value="browse" color="white" _selected={{ bg: 'purple.600'}}>Browse</Tabs.Trigger>
                         </Tabs.List>
                     </Tabs.Root>
                 )
