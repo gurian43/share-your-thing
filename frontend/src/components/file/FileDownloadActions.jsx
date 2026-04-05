@@ -49,7 +49,7 @@ const FileDownloadActions = ({ onDownload, onPause, onResume, onCancel, file, do
                     disabled={!file.active || isDownloading || isPaused}
                     loading={isDownloading}
                     loadingText="Downloading"
-                    _hover={{ bg: 'purple.500', boxShadow: '0 0 20px rgba(168, 85, 247, 0.6)' }}
+                    _hover={{ bg: 'purple.500' }}
                 >
                     <LuDownload />
                     Download File

@@ -1,4 +1,8 @@
-import { Card, Grid, Separator, Skeleton, VStack, Flex, HStack } from '@chakra-ui/react'
+import { Box, Card, Grid, Separator, VStack, Flex, HStack } from '@chakra-ui/react'
+
+const Placeholder = (props) => (
+    <Box bg="gray.700" opacity={0.8} borderRadius="md" {...props} />
+)
 
 const FileSkeletonGrid = () => {
     return (
@@ -8,16 +12,16 @@ const FileSkeletonGrid = () => {
                     <Card.Body>
                         <VStack align="stretch" spacing={3}>
                             <Flex justify="space-between" align="start">
-                                <Skeleton height="32px" width="32px" borderRadius="md" />
-                                <Skeleton height="20px" width="20px" borderRadius="full" />
+                                <Placeholder h="32px" w="32px" />
+                                <Placeholder h="20px" w="20px" borderRadius="full" />
                             </Flex>
-                            <Skeleton height="18px" width="80%" />
-                            <Skeleton height="14px" width="60%" />
+                            <Placeholder h="18px" w="80%" />
+                            <Placeholder h="14px" w="60%" />
                             <Separator />
                             <HStack spacing={2} justify="space-between">
-                                <Skeleton height="20px" width="20px" borderRadius="md" />
-                                <Skeleton height="20px" width="20px" borderRadius="md" />
-                                <Skeleton height="20px" width="20px" borderRadius="md" />
+                                <Placeholder h="20px" w="20px" />
+                                <Placeholder h="20px" w="20px" />
+                                <Placeholder h="20px" w="20px" />
                             </HStack>
                         </VStack>
                     </Card.Body>

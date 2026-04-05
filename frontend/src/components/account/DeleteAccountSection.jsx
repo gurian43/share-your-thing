@@ -13,7 +13,17 @@ const DeleteAccountSection = ({ onOpenDeleteDialog }) => {
                     </Alert.Description>
                 </Alert.Content>
             </Alert.Root>
-            <Button variant="outline" colorPalette="red" onClick={onOpenDeleteDialog}>Delete My Account</Button>
+            <Button
+                variant="outline"
+                colorPalette="red"
+                color="red.200"
+                px={4}
+                py={2}
+                _hover={{ bg: 'gray.800', color: 'white' }}
+                onClick={onOpenDeleteDialog}
+            >
+                Delete My Account
+            </Button>
         </VStack>
     )
 }

@@ -36,7 +36,7 @@ const DownloadPasswordDialog = ({ isOpen, password, onPasswordChange, onCancel, 
                             loading={isSubmitting}
                             loadingText="Downloading"
                             disabled={!password}
-                            _hover={{ bg: 'purple.500', boxShadow: '0 0 20px rgba(168, 85, 247, 0.6)' }}
+                            _hover={{ bg: 'purple.500' }}
                         >
                             Download
                         </Button>

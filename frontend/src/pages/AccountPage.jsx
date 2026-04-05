@@ -6,9 +6,9 @@ import { toaster } from '../components/ui/toaster';
 import { useNavigate } from 'react-router-dom';
 import { useAuth } from '../context/AuthContext';
 import AccountOverviewSection from '../components/account/AccountOverviewSection';
+import ChangePasswordSection from '../components/account/ChangePasswordSection';
 import DeleteAccountSection from '../components/account/DeleteAccountSection';
 import DeleteAccountDialog from '../components/account/DeleteAccountDialog';
-import ChangePasswordDialog from '../components/account/ChangePasswordDialog';
 
 
 const AccountPage = () => {
@@ -18,7 +18,6 @@ const AccountPage = () => {
     const [activeSection, setActiveSection] = useState("overview");
     const [deleteDialogOpen, setDeleteDialogOpen] = useState(false);
     const [usedStorage, setUsedStorage] = useState(user ? (user.current_storage / (1024 * 1024)).toFixed(2) : "0.00");
-    const [passwordDialogOpen, setPasswordDialogOpen] = useState(false);
 
     const handleRecalculateStorage = async () => {
         const promise = fetch('/api/user/recalculate-storage', {
@@ -52,6 +51,8 @@ const AccountPage = () => {
                         onRecalculateStorage={handleRecalculateStorage}
                     />
                 )
+            case 'password':
+                return <ChangePasswordSection />
             case 'delete':
                 return (
                     <DeleteAccountSection onOpenDeleteDialog={() => setDeleteDialogOpen(true)} />
@@ -115,11 +116,50 @@ const AccountPage = () => {
                 <Heading mb={8} color={"white"} size={"2xl"}>Account Page</Heading>
                 <HStack spacing={8} align="stretch">
                     <Container flex={1}>
-                        <VStack>
-                            <Button w={"100%"} color="white" _hover={{ bg: 'gray.800' }}onClick={() => handleSelect("overview")}>Account Overview</Button>
-                            <Button w={"100%"} color="white" _hover={{ bg: 'gray.800' }} onClick={() => setPasswordDialogOpen(true)}>Change Password</Button>
-                            <Button w={"100%"} color="white" _hover={{ bg: 'gray.800' }} onClick={() => handleSelect("delete")}>Delete Account</Button>
-                            <Button w={"100%"} color="red.300" _hover={{ bg: 'red.800' }} onClick={handleLogout}>Logout</Button>
+                        <VStack align="stretch" spacing={1}>
+                            <Button
+                                w={"100%"}
+                                variant="ghost"
+                                justifyContent="flex-start"
+                                color={activeSection === 'overview' ? 'purple.300' : 'gray.300'}
+                                bg={activeSection === 'overview' ? 'gray.800' : 'transparent'}
+                                _hover={{ bg: 'gray.800', color: 'white' }}
+                                onClick={() => handleSelect("overview")}
+                            >
+                                Account Overview
+                            </Button>
+                            <Button
+                                w={"100%"}
+                                variant="ghost"
+                                justifyContent="flex-start"
+                                color={activeSection === 'password' ? 'purple.300' : 'gray.300'}
+                                bg={activeSection === 'password' ? 'gray.800' : 'transparent'}
+                                _hover={{ bg: 'gray.800', color: 'white' }}
+                                onClick={() => handleSelect("password")}
+                            >
+                                Change Password
+                            </Button>
+                            <Button
+                                w={"100%"}
+                                variant="ghost"
+                                justifyContent="flex-start"
+                                color={activeSection === 'delete' ? 'red.300' : 'gray.300'}
+                                bg={activeSection === 'delete' ? 'gray.800' : 'transparent'}
+                                _hover={{ bg: 'gray.800', color: 'white' }}
+                                onClick={() => handleSelect("delete")}
+                            >
+                                Delete Account
+                            </Button>
+                            <Button
+                                w={"100%"}
+                                variant="ghost"
+                                justifyContent="flex-start"
+                                color="red.300"
+                                _hover={{ bg: 'gray.800', color: 'red.200' }}
+                                onClick={handleLogout}
+                            >
+                                Logout
+                            </Button>
                         </VStack>
                     </Container>
                     <Separator orientation={"vertical"} />
@@ -132,11 +172,6 @@ const AccountPage = () => {
                 isOpen={deleteDialogOpen}
                 onClose={() => setDeleteDialogOpen(false)}
                 onConfirmDelete={confirmDelete}
-            />
-
-            <ChangePasswordDialog
-                isOpen={passwordDialogOpen}
-                onClose={() => setPasswordDialogOpen(false)}
             />
 
             <Footer />

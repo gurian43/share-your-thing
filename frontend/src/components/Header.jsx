@@ -46,6 +46,25 @@ const Header = ({variant}) => {
         else if (value === 'browse') navigate('/browse')
     }
 
+    const sharedTabsProps = {
+        variant: 'enclosed',
+        colorPalette: 'purple',
+        maxW: '100%',
+    }
+
+    const sharedTabListProps = {
+        display: 'flex',
+        flexWrap: 'wrap',
+        gap: 1,
+    }
+
+    const sharedTabTriggerProps = {
+        color: 'white',
+        px: 4,
+        py: 2,
+        _selected: { bg: 'purple.600' },
+    }
+
     let navContent = null
     let userContent = null
     
@@ -68,16 +87,15 @@ const Header = ({variant}) => {
                         </Portal>
                     </Menu.Root>
                 ) : (
-                    <Tabs.Root 
-                        variant={"enclosed"}
-                        value={getCurrentPage()} 
+                    <Tabs.Root
+                        {...sharedTabsProps}
+                        value={getCurrentPage()}
                         onValueChange={(details) => handleNavigation(details.value)}
-                        maxW="100%"
                     >
-                        <Tabs.List display="flex" flexWrap="wrap">
-                            <Tabs.Trigger value="home" color="white" _selected={{ bg: 'purple.600'}}>Home</Tabs.Trigger>
-                            <Tabs.Trigger value="dashboard" color="white" _selected={{ bg: 'purple.600'}}>Dashboard</Tabs.Trigger>
-                            <Tabs.Trigger value="browse" color="white" _selected={{ bg: 'purple.600'}}>Browse</Tabs.Trigger>
+                        <Tabs.List {...sharedTabListProps}>
+                            <Tabs.Trigger value="home" {...sharedTabTriggerProps}>Home</Tabs.Trigger>
+                            <Tabs.Trigger value="dashboard" {...sharedTabTriggerProps}>Dashboard</Tabs.Trigger>
+                            <Tabs.Trigger value="browse" {...sharedTabTriggerProps}>Browse</Tabs.Trigger>
                         </Tabs.List>
                     </Tabs.Root>
                 )
@@ -130,10 +148,14 @@ const Header = ({variant}) => {
         } else {
             navContent = (
                 isMobile ? null : (
-                    <Tabs.Root value={getCurrentPage()} onValueChange={(details) => handleNavigation(details.value)} colorPalette="purple" maxW="100%">
-                        <Tabs.List display="flex" flexWrap="wrap">
-                            <Tabs.Trigger value="home" color="white" _selected={{ bg: 'purple.600'}}>Home</Tabs.Trigger>
-                            <Tabs.Trigger value="browse" color="white" _selected={{ bg: 'purple.600'}}>Browse</Tabs.Trigger>
+                    <Tabs.Root
+                        {...sharedTabsProps}
+                        value={getCurrentPage()}
+                        onValueChange={(details) => handleNavigation(details.value)}
+                    >
+                        <Tabs.List {...sharedTabListProps}>
+                            <Tabs.Trigger value="home" {...sharedTabTriggerProps}>Home</Tabs.Trigger>
+                            <Tabs.Trigger value="browse" {...sharedTabTriggerProps}>Browse</Tabs.Trigger>
                         </Tabs.List>
                     </Tabs.Root>
                 )
@@ -145,7 +167,7 @@ const Header = ({variant}) => {
                         colorScheme="purple" 
                         variant="outline" 
                         size={{ base: 'sm', md: 'md' }}
-                        _hover={{ bg: 'purple.700', boxShadow: '0 0 20px rgba(168, 85, 247, 0.5)' }}
+                        _hover={{ bg: 'gray.700' }}
                         onClick={() => navigate('/login')}
                     >
                         Sign In

@@ -36,8 +36,10 @@ const DashboardPage = () => {
     const [shareDialogFile, setShareDialogFile] = useState(null)
     const [deleteDialogOpen, setDeleteDialogOpen] = useState(false)
     const [deleteDialogFile, setDeleteDialogFile] = useState(null)
+    const minimumLoadingMs = 400
 
     const loadDashboard = async () => {
+        const startedAt = Date.now()
         setLoading(true)
         try {
             const userRes = await fetch('/api/user/me', {
@@ -103,6 +105,10 @@ const DashboardPage = () => {
                 isAdmin: false,
             })
         } finally {
+            const elapsed = Date.now() - startedAt
+            if (elapsed < minimumLoadingMs) {
+                await new Promise((resolve) => setTimeout(resolve, minimumLoadingMs - elapsed))
+            }
             setLoading(false)
         }
     }

@@ -11,7 +11,15 @@ const AccountOverviewSection = ({ user, usedStorage, onRecalculateStorage }) => 
                 Storage Used: {usedStorage} MB / {user.admin ? 'Unlimited' : `${(user.max_storage / (1024 * 1024)).toFixed(2)} MB`}
             </Text>
             <Text color="gray.400">Status: <Span color="green.400">{user.active ? 'Active' : 'Inactive'}</Span></Text>
-            <Button onClick={onRecalculateStorage} _hover={{ bg: 'gray.800' }}>
+            <Button
+                variant="outline"
+                colorPalette="gray"
+                color="gray.200"
+                px={4}
+                py={2}
+                _hover={{ bg: 'gray.800', color: 'white' }}
+                onClick={onRecalculateStorage}
+            >
                 Recalculate Storage Usage <LuRefreshCw />
             </Button>
         </VStack>

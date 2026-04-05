@@ -9,7 +9,7 @@ const DashboardControls = ({ viewMode, onViewChange, searchQuery, onSearch, onUp
                     <Button
                         bg="purple.600"
                         color="white"
-                        _hover={{ bg: 'purple.500', boxShadow: '0 0 20px rgba(168, 85, 247, 0.6)' }}
+                        _hover={{ bg: 'purple.500' }}
                         onClick={onUpload}
                     >
                         <LuUpload />
