@@ -14,7 +14,7 @@ const ShareDialog = ({ isOpen, file, onClose }) => {
                     </VStack>
                 </Dialog.Body>
                 <Dialog.Footer>
-                    <Button variant="outline" color="white" _hover={{ color: 'black' }} onClick={onClose}>Cancel</Button>
+                    <Button variant="outline" color="white" borderColor="gray.600" _hover={{ bg: 'gray.700', color: 'white' }} onClick={onClose}>Cancel</Button>
                     <Button bg="purple.600" color="white" onClick={onClose}>Share</Button>
                 </Dialog.Footer>
                 <Dialog.CloseTrigger />

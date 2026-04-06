@@ -1,6 +1,7 @@
 # Share Your Thing
 
 A full-stack file sharing web application built with Express.js and React.
+This is a school project.
 
 ## Prerequisites
 

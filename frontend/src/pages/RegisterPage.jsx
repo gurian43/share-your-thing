@@ -283,7 +283,7 @@ const RegisterPage = () => {
                     </Steps.List>
                 </Steps.Root>
 
-                <Box w="full" bg="gray.800" p={{ base: 4, md: 7 }} borderRadius="lg" boxShadow="lg" borderTop="2px" borderColor="purple.500">
+                <Box w="full" bg="gray.800" p={{ base: 4, md: 7 }} borderRadius="lg" borderTop="2px" borderColor="purple.500">
                     {step === 1 && (
                         <Fieldset.Root>
                             <Fieldset.Content gap={{ base: 2, md: 4 }}>

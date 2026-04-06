@@ -1,7 +1,7 @@
 import { Badge, Box, Card, HStack, Heading, IconButton, VStack } from '@chakra-ui/react'
-import { LuThumbsDown, LuThumbsUp, LuShare2, LuFile, LuFileText, LuFileImage, LuFileVideo, LuFileAudio, LuFileArchive, LuFileSpreadsheet } from 'react-icons/lu'
+import { LuThumbsDown, LuThumbsUp, LuShare2, LuFlag, LuFile, LuFileText, LuFileImage, LuFileVideo, LuFileAudio, LuFileArchive, LuFileSpreadsheet } from 'react-icons/lu'
 
-const FileSummary = ({ file, onShare }) => {
+const FileSummary = ({ file, onShare, onReport }) => {
     return (
         <Card.Root bg="gray.800" borderColor="gray.700">
             <Card.Body>
@@ -45,6 +45,16 @@ const FileSummary = ({ file, onShare }) => {
                         >
                             <LuThumbsDown size={20} color='white' />
                         </IconButton>
+                        {onReport && (
+                            <IconButton
+                                variant="outline"
+                                colorPalette="red"
+                                onClick={onReport}
+                                _hover={{ bg: 'red.600' }}
+                            >
+                                <LuFlag size={20} color='white' />
+                            </IconButton>
+                        )}
                         <IconButton
                             variant="outline"
                             colorPalette="purple"

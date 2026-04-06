@@ -104,7 +104,7 @@ const LoginPage = () => {
                 Sign In
             </Heading>
 
-            <Box w="full" bg="gray.800" p={{ base: 6, md: 8 }} borderRadius="lg" boxShadow="lg" borderTop="2px" borderColor="purple.500">
+            <Box w="full" bg="gray.800" p={{ base: 6, md: 8 }} borderRadius="lg" borderTop="2px" borderColor="purple.500">
                 <Fieldset.Root>
                     <Fieldset.Content gap={4}>
                         <Field.Root>

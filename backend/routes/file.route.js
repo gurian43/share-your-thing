@@ -1,6 +1,7 @@
 import express from 'express';
 import multer from 'multer';
 import { getFileById, getUserFiles, deleteFile, uploadChunk, finalizeUpload, getUploadStatus, downloadFile } from '../controllers/file.controller.js';
+import { reportFile } from '../controllers/report.controller.js';
 import requireAuth from '../services/protectedRoute.js';
 import os from 'os';
 
@@ -24,6 +25,7 @@ router.get('/upload/status', requireAuth, getUploadStatus);
 router.post('/upload/chunk', requireAuth, chunkUpload.single('chunk'), uploadChunk);
 router.post('/upload/finalize', requireAuth, finalizeUpload);
 router.get('/', requireAuth, getUserFiles);
+router.post('/:fileId/report', requireAuth, reportFile);
 router.post('/:fileId/download', downloadFile);
 router.get('/:fileId', getFileById);
 router.delete('/:fileId', requireAuth, deleteFile);

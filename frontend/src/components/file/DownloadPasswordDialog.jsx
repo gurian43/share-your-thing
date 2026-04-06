@@ -26,7 +26,7 @@ const DownloadPasswordDialog = ({ isOpen, password, onPasswordChange, onCancel, 
                 </Dialog.Body>
                 <Dialog.Footer>
                     <HStack spacing={3} justify="flex-end">
-                        <Button variant="outline" color="white" _hover={{ color: 'black' }} onClick={onCancel}>
+                        <Button variant="outline" color="white" borderColor="gray.600" _hover={{ bg: 'gray.700', color: 'white' }} onClick={onCancel}>
                             Cancel
                         </Button>
                         <Button

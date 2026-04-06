@@ -11,6 +11,8 @@ import FileInfoPanel from '../components/file/FileInfoPanel'
 import FileDescriptionCard from '../components/file/FileDescriptionCard'
 import FileDownloadActions from '../components/file/FileDownloadActions'
 import DownloadPasswordDialog from '../components/file/DownloadPasswordDialog'
+import FileReportDialog from '../components/file/FileReportDialog'
+import ReportLoginDialog from '../components/file/ReportLoginDialog'
 import { createDownloadTask } from '../utils/downloadUtils'
 
 const formatBytes = (bytes) => {
@@ -33,6 +35,9 @@ const FilePage = () => {
     const [passwordDialogOpen, setPasswordDialogOpen] = useState(false)
     const [downloadPassword, setDownloadPassword] = useState('')
     const [downloadProgress, setDownloadProgress] = useState(null)
+    const [reportDialogOpen, setReportDialogOpen] = useState(false)
+    const [reportLoginDialogOpen, setReportLoginDialogOpen] = useState(false)
+    const [reportSubmitting, setReportSubmitting] = useState(false)
     const downloadTaskRef = useRef(null)
     const autoDownloadTriggeredRef = useRef(false)
 
@@ -223,6 +228,56 @@ const FilePage = () => {
         })
     }
 
+    const handleReport = () => {
+        if (!user) {
+            setReportLoginDialogOpen(true)
+            return
+        }
+        setReportDialogOpen(true)
+    }
+
+    const handleReportLogin = () => {
+        setReportLoginDialogOpen(false)
+        navigate('/login')
+    }
+
+    const submitReport = async (reason, description) => {
+        if (!file) return
+
+        setReportSubmitting(true)
+        try {
+            const res = await fetch(`/api/file/${file._id}/report`, {
+                method: 'POST',
+                credentials: 'include',
+                headers: {
+                    'Content-Type': 'application/json',
+                },
+                body: JSON.stringify({ reason, description }),
+            })
+
+            const data = await res.json().catch(() => ({}))
+
+            if (!res.ok) {
+                throw new Error(data.message || 'Failed to submit report')
+            }
+
+            setReportDialogOpen(false)
+            toaster.create({
+                title: 'Report submitted',
+                type: 'success',
+                duration: 3000,
+            })
+        } catch (err) {
+            toaster.create({
+                title: err?.message || 'Failed to submit report',
+                type: 'error',
+                duration: 4000,
+            })
+        } finally {
+            setReportSubmitting(false)
+        }
+    }
+
     if (loading) {
         return (
             <Box minH="100vh" bg="gray.900" display="flex" flexDirection="column">
@@ -266,7 +321,7 @@ const FilePage = () => {
                         </Button>
                     )}
 
-                    <FileSummary file={file} onShare={handleShare} />
+                    <FileSummary file={file} onShare={handleShare} onReport={handleReport} />
 
                     <Grid templateColumns={{ base: '1fr', md: 'repeat(2, 1fr)' }} gap={4}>
                         <FileInfoPanel
@@ -300,6 +355,20 @@ const FilePage = () => {
                 }}
                 onConfirm={handlePasswordDownload}
                 isSubmitting={downloadState === 'downloading'}
+            />
+
+            <FileReportDialog
+                isOpen={reportDialogOpen}
+                fileName={file.file_name}
+                onCancel={() => setReportDialogOpen(false)}
+                onConfirm={submitReport}
+                isSubmitting={reportSubmitting}
+            />
+
+            <ReportLoginDialog
+                isOpen={reportLoginDialogOpen}
+                onCancel={() => setReportLoginDialogOpen(false)}
+                onLogin={handleReportLogin}
             />
 
             <Footer />
