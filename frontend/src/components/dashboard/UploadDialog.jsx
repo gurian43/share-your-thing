@@ -305,7 +305,7 @@ const UploadDialog = ({ isOpen, onClose, onUploaded }) => {
                                         </Steps.Indicator>
                                         <Steps.Title color="white" fontSize="sm">{item.title}</Steps.Title>
                                     </Steps.Trigger>
-                                    {index < stepItems.length - 1 && <Steps.Separator />}
+                                    {index < stepItems.length - 1 && <Steps.Separator bg="whiteAlpha.700" />}
                                 </Steps.Item>
                             ))}
                         </Steps.List>
@@ -444,8 +444,8 @@ const UploadDialog = ({ isOpen, onClose, onUploaded }) => {
                                         }
                                     >
                                         <NumberInput.Control>
-                                            <NumberInput.IncrementTrigger bg={"gray.600"} color={"white"} _hover={{bg:"gray.500"}} />
-                                            <NumberInput.DecrementTrigger bg={"gray.600"} color={"white"} _hover={{bg:"gray.500"}} />
+                                                <NumberInput.IncrementTrigger bg={"gray.600"} color={"white"} _hover={{bg:"gray.500"}} />
+                                                <NumberInput.DecrementTrigger bg={"gray.600"} color={"white"} _hover={{bg:"gray.500"}} />
                                         </NumberInput.Control>
                                         <NumberInput.Input bg="gray.700" borderColor="gray.600" color="white" />
                                     </NumberInput.Root>
@@ -503,17 +503,17 @@ const UploadDialog = ({ isOpen, onClose, onUploaded }) => {
                 <Dialog.Footer>
                     <HStack justify="space-between" w="100%">
                         <HStack>
-                            <Button variant="outline" color="white" _hover={{ color: 'black' }} onClick={closeAndReset} disabled={submitting}>
+                            <Button variant="outline" color="white" borderColor="gray.600" _hover={{ bg: 'gray.700', color: 'white' }} onClick={closeAndReset} disabled={submitting}>
                                 Cancel
                             </Button>
                             {step === 2 && (
-                                <Button variant="ghost" color="white" _hover={{ color: 'black' }} onClick={handleBack} disabled={submitting}>Back</Button>
+                                <Button variant="ghost" color="white" _hover={{ bg: 'gray.700', color: 'white' }} onClick={handleBack} disabled={submitting}>Back</Button>
                             )}
                         </HStack>
                         {step === 1 ? (
-                            <Button bg="purple.600" color="white" onClick={handleNext} disabled={!file}>Next</Button>
+                            <Button bg="purple.600" color="white" _hover={{ bg: 'purple.500' }} onClick={handleNext} disabled={!file}>Next</Button>
                         ) : (
-                            <Button bg="purple.600" color="white" onClick={handleSubmit} disabled={submitting}>
+                            <Button bg="purple.600" color="white" _hover={{ bg: 'purple.500' }} onClick={handleSubmit} disabled={submitting}>
                                 {submitting ? 'Submitting...' : 'Submit'}
                             </Button>
                         )}

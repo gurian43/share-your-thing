@@ -277,7 +277,7 @@ const RegisterPage = () => {
                                     </Steps.Indicator>
                                     <Steps.Title color="white" display={{ base: 'none', md: 'block' }}>{item.title}</Steps.Title>
                                 </Steps.Trigger>
-                                {index < stepItems.length - 1 && <Steps.Separator />}
+                                {index < stepItems.length - 1 && <Steps.Separator bg="whiteAlpha.700" />}
                             </Steps.Item>
                         ))}
                     </Steps.List>

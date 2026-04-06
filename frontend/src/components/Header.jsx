@@ -167,7 +167,8 @@ const Header = ({variant}) => {
                         colorScheme="purple" 
                         variant="outline" 
                         size={{ base: 'sm', md: 'md' }}
-                        _hover={{ bg: 'gray.700' }}
+                        borderColor="gray.600"
+                        _hover={{ bg: 'gray.600', color: 'white' }}
                         onClick={() => navigate('/login')}
                     >
                         Sign In

@@ -1,7 +1,10 @@
 import { Badge, Box, Card, HStack, Heading, IconButton, VStack } from '@chakra-ui/react'
 import { LuThumbsDown, LuThumbsUp, LuShare2, LuFlag, LuFile, LuFileText, LuFileImage, LuFileVideo, LuFileAudio, LuFileArchive, LuFileSpreadsheet } from 'react-icons/lu'
 
-const FileSummary = ({ file, onShare, onReport }) => {
+const FileSummary = ({ file, onShare, onReport, onUpvote, onDownvote, userVote = 0, isVoteSubmitting = false, isOwnFile = false }) => {
+    const score = Number(file?.score || 0)
+    const scorePalette = score > 0 ? 'green' : score < 0 ? 'red' : 'gray'
+
     return (
         <Card.Root bg="gray.800" borderColor="gray.700">
             <Card.Body>
@@ -20,6 +23,9 @@ const FileSummary = ({ file, onShare, onReport }) => {
                             <Badge colorPalette={getVisibilityColor(file.visibility)} textTransform="capitalize">
                                 {file.visibility}
                             </Badge>
+                            <Badge colorPalette={scorePalette}>
+                                Score: {score > 0 ? `+${score}` : score}
+                            </Badge>
                             {file.password && (
                                 <Badge colorPalette="orange">
                                     Password Protected
@@ -28,23 +34,30 @@ const FileSummary = ({ file, onShare, onReport }) => {
                         </HStack>
                     </VStack>
                     <HStack spacing={2} flexWrap="wrap">
-
-                        <IconButton
-                            variant="outline"
-                            colorPalette="green"
-                            onClick={() => console.log('like')}
-                            _hover={{ bg: 'green.600' }}
-                        >
-                            <LuThumbsUp size={20} color='white' />
-                        </IconButton>
-                        <IconButton
-                            variant="outline"
-                            colorPalette="red"
-                            onClick={() => console.log('dislike')}
-                            _hover={{ bg: 'red.600' }}
-                        >
-                            <LuThumbsDown size={20} color='white' />
-                        </IconButton>
+                        {!isOwnFile && (
+                            <>
+                                <IconButton
+                                    variant="outline"
+                                    colorPalette={userVote === 1 ? 'green' : 'gray'}
+                                    onClick={onUpvote}
+                                    disabled={isVoteSubmitting}
+                                    _hover={{ bg: userVote === 1 ? 'green.600' : 'gray.700' }}
+                                    aria-label="Upvote"
+                                >
+                                    <LuThumbsUp size={20} color='white' />
+                                </IconButton>
+                                <IconButton
+                                    variant="outline"
+                                    colorPalette={userVote === -1 ? 'red' : 'gray'}
+                                    onClick={onDownvote}
+                                    disabled={isVoteSubmitting}
+                                    _hover={{ bg: userVote === -1 ? 'red.600' : 'gray.700' }}
+                                    aria-label="Downvote"
+                                >
+                                    <LuThumbsDown size={20} color='white' />
+                                </IconButton>
+                            </>
+                        )}
                         {onReport && (
                             <IconButton
                                 variant="outline"

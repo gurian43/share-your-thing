@@ -61,7 +61,8 @@ const FileDownloadActions = ({ onDownload, onPause, onResume, onCancel, file, do
                     variant="outline"
                     color="gray.200"
                     onClick={onPause}
-                    _hover={{ bg: 'gray.700' }}
+                    borderColor="gray.600"
+                    _hover={{ bg: 'gray.600', color: 'white' }}
                 >
                     <LuPause />
                     Pause
@@ -73,7 +74,8 @@ const FileDownloadActions = ({ onDownload, onPause, onResume, onCancel, file, do
                     variant="outline"
                     color="gray.200"
                     onClick={onResume}
-                    _hover={{ bg: 'gray.700' }}
+                    borderColor="gray.600"
+                    _hover={{ bg: 'gray.600', color: 'white' }}
                 >
                     <LuPlay />
                     Resume
@@ -85,7 +87,7 @@ const FileDownloadActions = ({ onDownload, onPause, onResume, onCancel, file, do
                     variant="solid"
                     colorPalette="red"
                     onClick={onCancel}
-                    _hover={{ bg: 'red.500' }}
+                    _hover={{ bg: 'red.400' }}
                 >
                     <LuX />
                     Cancel

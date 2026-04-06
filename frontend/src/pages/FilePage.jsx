@@ -38,8 +38,11 @@ const FilePage = () => {
     const [reportDialogOpen, setReportDialogOpen] = useState(false)
     const [reportLoginDialogOpen, setReportLoginDialogOpen] = useState(false)
     const [reportSubmitting, setReportSubmitting] = useState(false)
+    const [voteSubmitting, setVoteSubmitting] = useState(false)
+    const [authDialogMode, setAuthDialogMode] = useState('report')
     const downloadTaskRef = useRef(null)
     const autoDownloadTriggeredRef = useRef(false)
+    const isOwnFile = Boolean(user && file?.owner?._id && user._id && user._id.toString() === file.owner._id.toString())
 
     useEffect(() => {
         document.title = 'File - Share Your Thing'
@@ -230,10 +233,52 @@ const FilePage = () => {
 
     const handleReport = () => {
         if (!user) {
+            setAuthDialogMode('report')
             setReportLoginDialogOpen(true)
             return
         }
         setReportDialogOpen(true)
+    }
+
+    const handleVote = async (value) => {
+        if (!file || voteSubmitting) return
+
+        if (!user) {
+            setAuthDialogMode('vote')
+            setReportLoginDialogOpen(true)
+            return
+        }
+
+        setVoteSubmitting(true)
+        try {
+            const res = await fetch(`/api/file/${file._id}/vote`, {
+                method: 'POST',
+                credentials: 'include',
+                headers: {
+                    'Content-Type': 'application/json',
+                },
+                body: JSON.stringify({ value }),
+            })
+
+            const data = await res.json().catch(() => ({}))
+            if (!res.ok) {
+                throw new Error(data.message || 'Failed to update vote')
+            }
+
+            setFile((prevFile) => ({
+                ...prevFile,
+                user_vote: data.vote?.user_vote ?? prevFile.user_vote ?? 0,
+                score: data.vote?.score ?? prevFile.score ?? 0,
+            }))
+        } catch (err) {
+            toaster.create({
+                title: err?.message || 'Failed to update vote',
+                type: 'error',
+                duration: 3000,
+            })
+        } finally {
+            setVoteSubmitting(false)
+        }
     }
 
     const handleReportLogin = () => {
@@ -314,14 +359,23 @@ const FilePage = () => {
                             color="gray.400"
                             onClick={() => navigate('/dashboard')}
                             alignSelf="flex-start"
-                            _hover={{ color: 'white', bg: 'gray.800' }}
+                            _hover={{ color: 'white', bg: 'gray.700' }}
                         >
                             <LuArrowLeft />
                             Back to Dashboard
                         </Button>
                     )}
 
-                    <FileSummary file={file} onShare={handleShare} onReport={handleReport} />
+                    <FileSummary
+                        file={file}
+                        onShare={handleShare}
+                        onReport={!isOwnFile ? handleReport : undefined}
+                        onUpvote={() => handleVote(1)}
+                        onDownvote={() => handleVote(-1)}
+                        userVote={file.user_vote || 0}
+                        isVoteSubmitting={voteSubmitting}
+                        isOwnFile={isOwnFile}
+                    />
 
                     <Grid templateColumns={{ base: '1fr', md: 'repeat(2, 1fr)' }} gap={4}>
                         <FileInfoPanel
@@ -369,6 +423,8 @@ const FilePage = () => {
                 isOpen={reportLoginDialogOpen}
                 onCancel={() => setReportLoginDialogOpen(false)}
                 onLogin={handleReportLogin}
+                title={authDialogMode === 'vote' ? 'Sign in to vote' : 'Sign in required'}
+                message={authDialogMode === 'vote' ? 'You need to be signed in to upvote or downvote files.' : 'You need to be signed in to report a file.'}
             />
 
             <Footer />

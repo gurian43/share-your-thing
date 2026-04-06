@@ -32,7 +32,7 @@ const FileList = ({ files, onOpenFile, onShare = noop, onDelete = noop, onDownlo
                             py={3}
                             borderBottom="1px"
                             borderColor="gray.700"
-                            _hover={{ bg: 'gray.750' }}
+                            _hover={{ bg: 'gray.700' }}
                             align="center"
                             cursor="pointer"
                             onClick={() => onOpenFile(file)}

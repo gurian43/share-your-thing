@@ -1,9 +1,28 @@
 import File from '../models/file.model.js';
 import User from '../models/user.model.js';
+import Vote from '../models/vote.model.js';
 import fs from 'fs';
 import path from 'path';
 import Bcrypt from 'bcrypt';
 import { encryptFile, createDecipherStream } from '../services/encryptionService.js';
+
+const getVoteSummary = async (fileId, userId) => {
+    const [upvotes, downvotes] = await Promise.all([
+        Vote.countDocuments({ file_id: fileId, value: 1 }),
+        Vote.countDocuments({ file_id: fileId, value: -1 }),
+    ]);
+
+    let userVote = 0;
+    if (userId) {
+        const vote = await Vote.findOne({ file_id: fileId, user_id: userId }).select('value').lean();
+        userVote = vote?.value || 0;
+    }
+
+    return {
+        score: upvotes - downvotes,
+        userVote,
+    };
+};
 
 export const getFileById = async (req, res) => {
     try {
@@ -24,17 +43,22 @@ export const getFileById = async (req, res) => {
             await file.save();
         }
 
-        file.shared_with_count = file.shared_with.length;
+        const fileData = file.toObject();
+        fileData.shared_with_count = file.shared_with.length;
 
-        if (file.visibility === 'private') {
-            const isOwner = file.owner._id.toString() === req.session.userId?.toString();
-            const isSharedWith = file.shared_with.some(id => id.toString() === req.session.userId?.toString());
+        if (fileData.visibility === 'private') {
+            const isOwner = fileData.owner._id.toString() === req.session.userId?.toString();
+            const isSharedWith = fileData.shared_with.some(id => id.toString() === req.session.userId?.toString());
             if (!req.session.userId || (!isOwner && !isSharedWith)) {
                 return res.status(403).json({ status: 403, message: 'Access denied' });
             }
         }
 
-        return res.status(200).json({ status: 200, file });
+        const voteSummary = await getVoteSummary(fileData._id, req.session.userId);
+        fileData.score = voteSummary.score;
+        fileData.user_vote = voteSummary.userVote;
+
+        return res.status(200).json({ status: 200, file: fileData });
     } catch (err) {
         console.error('Error fetching file:', err);
         return res.status(500).json({ status: 500, message: 'Internal server error' });
@@ -439,5 +463,67 @@ export const finalizeUpload = async (req, res) => {
     } catch (err) {
         console.error('Error finalizing upload:', err);
         return res.status(500).json({ status: 500, message: err.message || 'Internal server error' });
+    }
+};
+
+export const voteFile = async (req, res) => {
+    try {
+        const { fileId } = req.params;
+        const userId = req.session.userId;
+        const parsedValue = Number(req.body?.value);
+
+        if (!fileId) {
+            return res.status(400).json({ status: 400, message: 'File ID is required' });
+        }
+
+        if (!userId) {
+            return res.status(401).json({ status: 401, message: 'Unauthorized' });
+        }
+
+        if (![1, -1].includes(parsedValue)) {
+            return res.status(400).json({ status: 400, message: 'Vote value must be 1 or -1' });
+        }
+
+        const file = await File.findById(fileId).select('_id visibility owner shared_with');
+        if (!file) {
+            return res.status(404).json({ status: 404, message: 'File not found' });
+        }
+
+        if (file.visibility === 'private') {
+            const isOwner = file.owner.toString() === userId.toString();
+            const isSharedWith = file.shared_with.some(id => id.toString() === userId.toString());
+            if (!isOwner && !isSharedWith) {
+                return res.status(403).json({ status: 403, message: 'Access denied' });
+            }
+        }
+
+        if (file.owner.toString() === userId.toString()) {
+            return res.status(403).json({ status: 403, message: 'You cannot vote on your own file' });
+        }
+
+        const existingVote = await Vote.findOne({ file_id: fileId, user_id: userId });
+
+        if (!existingVote) {
+            await Vote.create({ file_id: fileId, user_id: userId, value: parsedValue });
+        } else if (existingVote.value === parsedValue) {
+            await Vote.findByIdAndDelete(existingVote._id);
+        } else {
+            existingVote.value = parsedValue;
+            await existingVote.save();
+        }
+
+        const voteSummary = await getVoteSummary(fileId, userId);
+
+        return res.status(200).json({
+            status: 200,
+            message: 'Vote updated',
+            vote: {
+                user_vote: voteSummary.userVote,
+                score: voteSummary.score,
+            },
+        });
+    } catch (err) {
+        console.error('Error voting file:', err);
+        return res.status(500).json({ status: 500, message: 'Internal server error' });
     }
 };

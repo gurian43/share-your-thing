@@ -17,7 +17,8 @@ const AccountOverviewSection = ({ user, usedStorage, onRecalculateStorage }) => 
                 color="gray.200"
                 px={4}
                 py={2}
-                _hover={{ bg: 'gray.800', color: 'white' }}
+                borderColor="gray.600"
+                _hover={{ bg: 'gray.700', color: 'white' }}
                 onClick={onRecalculateStorage}
             >
                 Recalculate Storage Usage <LuRefreshCw />

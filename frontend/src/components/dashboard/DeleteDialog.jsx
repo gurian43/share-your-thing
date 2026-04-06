@@ -11,7 +11,7 @@ const DeleteDialog = ({ isOpen, file, onCancel, onConfirm }) => {
                             Are you really sure you want to delete <Text as="span" fontWeight="bold" color="red.400">{file?.name}</Text>?
                         </Heading>
                         <HStack spacing={4}>
-                            <Button variant="outline" color="white" _hover={{ color: 'black' }} onClick={onCancel}>Cancel</Button>
+                            <Button variant="outline" color="white" borderColor="gray.600" _hover={{ bg: 'gray.700', color: 'white' }} onClick={onCancel}>Cancel</Button>
                             <Button bg="red.600" color="white" onClick={onConfirm} _hover={{ bg: 'red.500' }}>Delete</Button>
                         </HStack>
                     </VStack>

@@ -1,17 +1,17 @@
 import { Button, Dialog, HStack, Text, VStack } from '@chakra-ui/react'
 
-const ReportLoginDialog = ({ isOpen, onCancel, onLogin }) => {
+const ReportLoginDialog = ({ isOpen, onCancel, onLogin, title = 'Sign in required', message = 'You need to be signed in to continue.', confirmLabel = 'Go to Login' }) => {
     return (
         <Dialog.Root open={isOpen} onOpenChange={(e) => { if (!e.open) onCancel() }} zIndex={9999}>
             <Dialog.Backdrop />
             <Dialog.Content position="fixed" top="40%" left="50%" transform="translate(-50%, -50%)" maxW="500px" bg="gray.800">
                 <Dialog.Header>
-                    <Dialog.Title color="white">Sign in required</Dialog.Title>
+                    <Dialog.Title color="white">{title}</Dialog.Title>
                 </Dialog.Header>
                 <Dialog.Body>
                     <VStack spacing={3} align="stretch">
                         <Text color="gray.300">
-                            You need to be signed in to report a file.
+                            {message}
                         </Text>
                     </VStack>
                 </Dialog.Body>
@@ -21,7 +21,7 @@ const ReportLoginDialog = ({ isOpen, onCancel, onLogin }) => {
                             Cancel
                         </Button>
                         <Button bg="purple.600" color="white" _hover={{ bg: 'purple.500' }} onClick={onLogin}>
-                            Go to Login
+                            {confirmLabel}
                         </Button>
                     </HStack>
                 </Dialog.Footer>

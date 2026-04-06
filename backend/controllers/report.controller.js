@@ -19,7 +19,7 @@ export const reportFile = async (req, res) => {
 
         if (!reason) {
             return res.status(400).json({ status: 400, message: 'Reason is required' });
-        }
+        } 
 
         const allowedReasons = ['inappropriate', 'spam', 'other'];
         if (!allowedReasons.includes(reason)) {
@@ -29,6 +29,10 @@ export const reportFile = async (req, res) => {
         const file = await File.findById(fileId).select('_id file_name');
         if (!file) {
             return res.status(404).json({ status: 404, message: 'File not found' });
+        }
+
+        if (file.owner.toString() === reporterId.toString()) {
+            return res.status(403).json({ status: 403, message: 'You cannot report your own file' });
         }
 
         const existingReport = await Report.findOne({ reporter_id: reporterId, file_id: fileId });

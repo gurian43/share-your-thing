@@ -126,7 +126,8 @@ const ChangePasswordSection = () => {
                     color="purple.200"
                     px={4}
                     py={2}
-                    _hover={{ bg: 'gray.800', color: 'white' }}
+                    borderColor="purple.500"
+                    _hover={{ bg: 'purple.600', color: 'white' }}
                     loading={changingPassword}
                     loadingText="Updating"
                     onClick={handleChangePassword}

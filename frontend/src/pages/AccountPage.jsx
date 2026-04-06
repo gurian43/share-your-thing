@@ -123,7 +123,7 @@ const AccountPage = () => {
                                 justifyContent="flex-start"
                                 color={activeSection === 'overview' ? 'purple.300' : 'gray.300'}
                                 bg={activeSection === 'overview' ? 'gray.800' : 'transparent'}
-                                _hover={{ bg: 'gray.800', color: 'white' }}
+                                _hover={{ bg: 'gray.700', color: 'white' }}
                                 onClick={() => handleSelect("overview")}
                             >
                                 Account Overview
@@ -134,7 +134,7 @@ const AccountPage = () => {
                                 justifyContent="flex-start"
                                 color={activeSection === 'password' ? 'purple.300' : 'gray.300'}
                                 bg={activeSection === 'password' ? 'gray.800' : 'transparent'}
-                                _hover={{ bg: 'gray.800', color: 'white' }}
+                                _hover={{ bg: 'gray.700', color: 'white' }}
                                 onClick={() => handleSelect("password")}
                             >
                                 Change Password
@@ -145,7 +145,7 @@ const AccountPage = () => {
                                 justifyContent="flex-start"
                                 color={activeSection === 'delete' ? 'red.300' : 'gray.300'}
                                 bg={activeSection === 'delete' ? 'gray.800' : 'transparent'}
-                                _hover={{ bg: 'gray.800', color: 'white' }}
+                                _hover={{ bg: 'gray.700', color: 'white' }}
                                 onClick={() => handleSelect("delete")}
                             >
                                 Delete Account
@@ -155,7 +155,7 @@ const AccountPage = () => {
                                 variant="ghost"
                                 justifyContent="flex-start"
                                 color="red.300"
-                                _hover={{ bg: 'gray.800', color: 'red.200' }}
+                                _hover={{ bg: 'red.700', color: 'white' }}
                                 onClick={handleLogout}
                             >
                                 Logout

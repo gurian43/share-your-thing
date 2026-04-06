@@ -50,10 +50,10 @@ const DeleteAccountDialog = ({ isOpen, onClose, onConfirmDelete }) => {
                             onChange={(e) => setDeleteConfirmText(e.target.value)}
                         />
                         <HStack spacing={4}>
-                            <Button variant="ghost" color="gray.300" _hover={{ bg: 'gray.700', color: 'white' }} onClick={onClose}>
+                            <Button variant="ghost" color="gray.300" _hover={{ bg: 'gray.600', color: 'white' }} onClick={onClose}>
                                 Cancel
                             </Button>
-                            <Button variant="ghost" color="red.300" _hover={{ bg: 'gray.700', color: 'red.200' }} onClick={handleConfirm}>
+                            <Button variant="ghost" color="red.300" _hover={{ bg: 'red.700', color: 'white' }} onClick={handleConfirm}>
                                 Delete Account
                             </Button>
                         </HStack>
