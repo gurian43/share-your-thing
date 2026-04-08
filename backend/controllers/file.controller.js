@@ -24,6 +24,8 @@ const getVoteSummary = async (fileId, userId) => {
     };
 };
 
+const normalizeEmail = (email) => String(email || '').trim().toLowerCase();
+
 export const getFileById = async (req, res) => {
     try {
         const { fileId } = req.params;
@@ -44,7 +46,9 @@ export const getFileById = async (req, res) => {
         }
 
         const fileData = file.toObject();
-        fileData.shared_with_count = file.shared_with.length;
+        fileData.shared_with_count = Array.isArray(file.shared_with_emails)
+            ? file.shared_with_emails.length
+            : 0;
 
         if (fileData.visibility === 'private') {
             const isOwner = fileData.owner._id.toString() === req.session.userId?.toString();
@@ -71,9 +75,106 @@ export const getUserFiles = async (req, res) => {
             .sort({ uploaded_at: -1 })
             .lean();
 
-        return res.status(200).json({ status: 200, files });
+        const filesWithShareMeta = files.map((file) => ({
+            ...file,
+            shared_with_count: Array.isArray(file.shared_with_emails) ? file.shared_with_emails.length : 0,
+            shared_with_emails: Array.isArray(file.shared_with_emails) ? file.shared_with_emails : [],
+        }));
+
+        return res.status(200).json({ status: 200, files: filesWithShareMeta });
     } catch (err) {
         console.error('Error fetching user files:', err);
+        return res.status(500).json({ status: 500, message: 'Internal server error' });
+    }
+};
+
+export const updateFileShareSettings = async (req, res) => {
+    try {
+        const { fileId } = req.params;
+        const userId = req.session.userId;
+        const { visibility, sharedWithEmails = [] } = req.body || {};
+
+        if (!fileId) {
+            return res.status(400).json({ status: 400, message: 'File ID is required' });
+        }
+
+        const allowedVisibility = ['private', 'unlisted', 'public'];
+        if (!allowedVisibility.includes(visibility)) {
+            return res.status(400).json({ status: 400, message: 'Invalid visibility value' });
+        }
+
+        if (!Array.isArray(sharedWithEmails)) {
+            return res.status(400).json({ status: 400, message: 'sharedWithEmails must be an array' });
+        }
+
+        const file = await File.findById(fileId).select('_id owner visibility shared_with shared_with_emails');
+        if (!file) {
+            return res.status(404).json({ status: 404, message: 'File not found' });
+        }
+
+        if (file.owner.toString() !== userId.toString()) {
+            return res.status(403).json({ status: 403, message: 'Access denied' });
+        }
+
+        let normalizedEmails = [];
+        let sharedWithUserIds = [];
+        if (visibility === 'private') {
+            normalizedEmails = [...new Set(
+                sharedWithEmails
+                    .map(normalizeEmail)
+                    .filter(Boolean)
+            )];
+
+            const invalidEmail = normalizedEmails.find((email) => !/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(email));
+            if (invalidEmail) {
+                return res.status(400).json({ status: 400, message: `Invalid email: ${invalidEmail}` });
+            }
+
+            if (normalizedEmails.length > 0) {
+                const users = await User.find({ email: { $in: normalizedEmails }, active: true })
+                    .select('_id email')
+                    .lean();
+
+                const foundEmails = new Set(users.map((user) => normalizeEmail(user.email)));
+                const missingEmails = normalizedEmails.filter((email) => !foundEmails.has(email));
+                if (missingEmails.length > 0) {
+                    return res.status(400).json({
+                        status: 400,
+                        message: `Users not found or inactive: ${missingEmails.join(', ')}`,
+                    });
+                }
+
+                sharedWithUserIds = users
+                    .map((user) => user._id)
+                    .filter((id) => id.toString() !== userId.toString());
+            }
+        }
+
+        file.visibility = visibility;
+        file.shared_with = visibility === 'private' ? sharedWithUserIds : [];
+        file.shared_with_emails = visibility === 'private' ? normalizedEmails : [];
+        await file.save();
+
+        const populatedFile = await File.findById(file._id)
+            .select('_id visibility shared_with_emails')
+            .lean();
+
+        return res.status(200).json({
+            status: 200,
+            message: 'Share settings updated',
+            file: {
+                id: populatedFile._id,
+                visibility: populatedFile.visibility,
+                shared_with_count: Array.isArray(populatedFile.shared_with_emails)
+                    ? populatedFile.shared_with_emails.length
+                    : 0,
+                shared_with_emails: Array.isArray(populatedFile.shared_with_emails)
+                    ? populatedFile.shared_with_emails
+                    : [],
+            },
+        });
+    } catch (err) {
+        console.error('Error updating share settings:', err);
         return res.status(500).json({ status: 500, message: 'Internal server error' });
     }
 };
@@ -320,6 +421,7 @@ export const finalizeUpload = async (req, res) => {
             checksum,
             description = '',
             visibility = 'unlisted',
+            sharedWithEmails = [],
             password = null,
             max_downloads = null,
             expires_at = null,
@@ -333,6 +435,10 @@ export const finalizeUpload = async (req, res) => {
 
         if (!uploadId || !fileName || !totalChunks || !checksum) {
             return res.status(400).json({ status: 400, message: 'Missing required fields' });
+        }
+
+        if (!Array.isArray(sharedWithEmails)) {
+            return res.status(400).json({ status: 400, message: 'sharedWithEmails must be an array' });
         }
 
         const uploadsRoot = path.resolve(process.cwd(), 'uploads');
@@ -420,12 +526,48 @@ export const finalizeUpload = async (req, res) => {
                 hashedPassword = await Bcrypt.hash(password, salt);
             }
 
+            let normalizedEmails = [];
+            let sharedWithUserIds = [];
+            if (safeVisibility === 'private') {
+                normalizedEmails = [...new Set(
+                    sharedWithEmails
+                        .map(normalizeEmail)
+                        .filter(Boolean)
+                )];
+
+                const invalidEmail = normalizedEmails.find((email) => !/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(email));
+                if (invalidEmail) {
+                    return res.status(400).json({ status: 400, message: `Invalid email: ${invalidEmail}` });
+                }
+
+                if (normalizedEmails.length > 0) {
+                    const users = await User.find({ email: { $in: normalizedEmails }, active: true })
+                        .select('_id email')
+                        .lean();
+
+                    const foundEmails = new Set(users.map((user) => normalizeEmail(user.email)));
+                    const missingEmails = normalizedEmails.filter((email) => !foundEmails.has(email));
+                    if (missingEmails.length > 0) {
+                        return res.status(400).json({
+                            status: 400,
+                            message: `Users not found or inactive: ${missingEmails.join(', ')}`,
+                        });
+                    }
+
+                    sharedWithUserIds = users
+                        .map((user) => user._id)
+                        .filter((id) => id.toString() !== userId.toString());
+                }
+            }
+
             const newFile = new File({
                 owner: userId,
                 file_name: fileName,
                 file_path: storedRelPath,
                 file_size: fileSize,
                 visibility: safeVisibility,
+                shared_with: safeVisibility === 'private' ? sharedWithUserIds : [],
+                shared_with_emails: safeVisibility === 'private' ? normalizedEmails : [],
                 password: hashedPassword,
                 description: description || '',
                 checksum: calculatedChecksum,

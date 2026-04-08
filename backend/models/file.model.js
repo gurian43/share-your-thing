@@ -52,6 +52,10 @@ const fileSchema = new mongoose.Schema({
         ref: "User",
         default: []
     }],
+    shared_with_emails: [{
+        type: String,
+        default: []
+    }],
     active: {
         type: Boolean,
         default: true

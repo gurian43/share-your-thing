@@ -17,6 +17,7 @@ import fileRoutes from './routes/file.route.js';
 dotenv.config();
 
 const APP_ENV = process.env.NODE_ENV || process.env.MODE || 'development';
+
 const IS_PRODUCTION = APP_ENV === 'production';
 
 const __dirname = path.resolve();

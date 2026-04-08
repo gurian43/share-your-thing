@@ -2,9 +2,7 @@ import { Box, Card, Flex, HStack, IconButton, Text, VStack, Badge } from '@chakr
 import { LuDownload, LuShare2, LuTrash2 } from 'react-icons/lu'
 import { formatBytes, getFileIcon, trimFileName } from '../../utils/fileUtils'
 
-const noop = () => {}
-
-const FileList = ({ files, onOpenFile, onShare = noop, onDelete = noop, onDownload = noop }) => {
+const FileList = ({ files, onOpenFile, onShare, onDelete, onDownload }) => {
     return (
         <Card.Root bg="gray.800" borderColor="gray.700">
             <Card.Body p={0}>

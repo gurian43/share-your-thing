@@ -2,7 +2,6 @@ import { useMemo, useState } from 'react'
 import {
     Box,
     Button,
-    createListCollection,
     Dialog,
     Field,
     FileUpload,
@@ -11,9 +10,10 @@ import {
     Input,
     NumberInput,
     Progress,
-    Select,
+    RadioGroup,
     Separator,
     Steps,
+    TagsInput,
     Text,
     Textarea,
     VStack,
@@ -29,6 +29,8 @@ const UploadDialog = ({ isOpen, onClose, onUploaded }) => {
     const [file, setFile] = useState(null)
     const [description, setDescription] = useState('')
     const [visibility, setVisibility] = useState('unlisted')
+    const [sharedEmails, setSharedEmails] = useState([])
+    const [shareEmailInput, setShareEmailInput] = useState('')
     const [password, setPassword] = useState('')
     const [maxDownloads, setMaxDownloads] = useState(0)
     const [expiresAt, setExpiresAt] = useState('')
@@ -38,13 +40,11 @@ const UploadDialog = ({ isOpen, onClose, onUploaded }) => {
     const [totalChunks, setTotalChunks] = useState(0)
     const [uploadStage, setUploadStage] = useState('idle') // idle, uploading, merging, encrypting
 
-    const visibilityOptions = createListCollection({
-        items: [
-            { label: 'Private', value: 'private' },
-            { label: 'Unlisted', value: 'unlisted' },
-            { label: 'Public', value: 'public' },
-        ]
-    })
+    const visibilityOptions = [
+        { label: 'Public', value: 'public' },
+        { label: 'Unlisted', value: 'unlisted' },
+        { label: 'Private', value: 'private' },
+    ]
 
     const fileInfo = useMemo(() => {
         if (!file) return null
@@ -60,6 +60,8 @@ const UploadDialog = ({ isOpen, onClose, onUploaded }) => {
         setFile(null)
         setDescription('')
         setVisibility('unlisted')
+        setSharedEmails([])
+        setShareEmailInput('')
         setPassword('')
         setMaxDownloads('')
         setExpiresAt('')
@@ -82,6 +84,17 @@ const UploadDialog = ({ isOpen, onClose, onUploaded }) => {
 
     const handleBack = () => setStep(1)
 
+    const commitShareEmailInput = () => {
+        const nextEmail = String(shareEmailInput || '').trim()
+        if (!nextEmail) return
+
+        setSharedEmails((prev) => {
+            const exists = prev.some((email) => String(email).toLowerCase() === nextEmail.toLowerCase())
+            return exists ? prev : [...prev, nextEmail]
+        })
+        setShareEmailInput('')
+    }
+
     const handleSubmit = async () => {
         if (!file) return
 
@@ -90,6 +103,22 @@ const UploadDialog = ({ isOpen, onClose, onUploaded }) => {
                 title: 'Password must be 32 characters or less',
                 type: 'error',
                 duration: 4000,
+            })
+            return
+        }
+
+        const normalizedEmails = [...new Set(
+            sharedEmails
+                .map((email) => String(email || '').trim().toLowerCase())
+                .filter(Boolean)
+        )]
+
+        const invalidEmail = normalizedEmails.find((email) => !/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(email))
+        if (visibility === 'private' && invalidEmail) {
+            toaster.create({
+                title: `Invalid email: ${invalidEmail}`,
+                type: 'error',
+                duration: 3500,
             })
             return
         }
@@ -237,6 +266,7 @@ const UploadDialog = ({ isOpen, onClose, onUploaded }) => {
                     checksum,
                     description,
                     visibility,
+                    sharedWithEmails: visibility === 'private' ? normalizedEmails : [],
                     password: password || null,
                     max_downloads: maxDownloads && maxDownloads > 0 ? maxDownloads : null,
                     expires_at: expiresAt || null,
@@ -244,7 +274,8 @@ const UploadDialog = ({ isOpen, onClose, onUploaded }) => {
             })
 
             if (!mergeRes.ok) {
-                throw new Error('Failed to finalize upload');
+                const mergeErr = await mergeRes.json().catch(() => ({}))
+                throw new Error(mergeErr?.message || 'Failed to finalize upload')
             }
 
             toaster.update(toastId, {
@@ -385,38 +416,22 @@ const UploadDialog = ({ isOpen, onClose, onUploaded }) => {
                             </Field.Root>
                             <HStack spacing={4} align="stretch">
                                 <Field.Root flex={1}>
-                                    <Select.Root
-                                        collection={visibilityOptions}
-                                        value={[visibility]}
-                                        onValueChange={(details) => setVisibility(details.value[0])}
-                                        positioning={{ strategy: 'fixed', hideWhenDetached: true }}
+                                    <Field.Label color="gray.200">Visibility</Field.Label>
+                                    <RadioGroup.Root
+                                        value={visibility}
+                                        onValueChange={(details) => setVisibility(details.value)}
+                                        colorPalette="purple"
                                     >
-                                        <Select.HiddenSelect />
-                                        <Select.Label color="gray.200">Visibility</Select.Label>
-                                        <Select.Control>
-                                            <Select.Trigger
-                                                bg="gray.700"
-                                                borderColor="gray.600"
-                                                color="white"
-                                                cursor={"pointer"}
-                                            >
-                                                <Select.ValueText />
-                                                <Select.IndicatorGroup>
-                                                    <Select.Indicator color={"white"} />
-                                                </Select.IndicatorGroup>
-                                            </Select.Trigger>
-                                        </Select.Control>
-                                        <Select.Positioner>
-                                            <Select.Content bg="gray.700" borderColor="gray.600">
-                                                {visibilityOptions.items.map((visibility) => (
-                                                <Select.Item cursor={"pointer"} color={"white"} item={visibility} key={visibility.value}>
-                                                    {visibility.label}
-                                                    <Select.ItemIndicator />
-                                                </Select.Item>
-                                                ))}
-                                            </Select.Content>
-                                        </Select.Positioner>
-                                    </Select.Root>
+                                        <HStack gap={4} wrap="wrap" minH="40px" align="center">
+                                            {visibilityOptions.map((option) => (
+                                                <RadioGroup.Item key={option.value} value={option.value}>
+                                                    <RadioGroup.ItemHiddenInput />
+                                                    <RadioGroup.ItemIndicator />
+                                                    <RadioGroup.ItemText color="white">{option.label}</RadioGroup.ItemText>
+                                                </RadioGroup.Item>
+                                            ))}
+                                        </HStack>
+                                    </RadioGroup.Root>
                                 </Field.Root>
                                 <Field.Root flex={1}>
                                     <Field.Label color="gray.200">Password (optional)</Field.Label>
@@ -433,6 +448,35 @@ const UploadDialog = ({ isOpen, onClose, onUploaded }) => {
                                     <Field.HelperText color="gray.400">Max 32 characters</Field.HelperText>
                                 </Field.Root>
                             </HStack>
+                            {visibility === 'private' && (
+                                <Field.Root>
+                                    <Field.Label color="gray.200">Share With</Field.Label>
+                                    <TagsInput.Root
+                                        value={sharedEmails}
+                                        onValueChange={(details) => setSharedEmails(details.value)}
+                                        inputValue={shareEmailInput}
+                                        onInputValueChange={(details) => setShareEmailInput(details.inputValue)}
+                                        delimiter="Enter"
+                                        colorPalette="gray"
+                                        size="sm"
+                                    >
+                                        <TagsInput.Control bg="gray.700" borderColor="gray.600" minH="44px">
+                                            <TagsInput.Items />
+                                            <TagsInput.Input
+                                                placeholder="Type email and press Enter or Space"
+                                                color="white"
+                                                onKeyDown={(event) => {
+                                                    if (event.key === ' ') {
+                                                        event.preventDefault()
+                                                        commitShareEmailInput()
+                                                    }
+                                                }}
+                                            />
+                                        </TagsInput.Control>
+                                    </TagsInput.Root>
+                                    <Field.HelperText color="gray.400">Press Enter or Space to add an address.</Field.HelperText>
+                                </Field.Root>
+                            )}
                             <HStack spacing={4} align="stretch">
                                 <Field.Root>
                                     <Field.Label color="gray.200">Max downloads</Field.Label>

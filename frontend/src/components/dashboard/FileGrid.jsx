@@ -2,9 +2,7 @@ import { Box, Card, Flex, Grid, HStack, IconButton, Separator, Text, VStack, Bad
 import { LuDownload, LuShare2, LuTrash2 } from 'react-icons/lu'
 import { formatBytes, getFileIcon, trimFileName } from '../../utils/fileUtils'
 
-const noop = () => {}
-
-const FileGrid = ({ files, onOpenFile, onShare = noop, onDelete = noop, onDownload = noop }) => {
+const FileGrid = ({ files, onOpenFile, onShare, onDelete, onDownload }) => {
     return (
         <Grid templateColumns={{ base: 'repeat(2, minmax(0, 1fr))', sm: 'repeat(3, minmax(0, 1fr))', md: 'repeat(auto-fill, minmax(200px, 1fr))' }} gap={4}>
             {files.map((file) => (

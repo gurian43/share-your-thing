@@ -64,6 +64,7 @@ const DashboardPage = () => {
                     shared: file.visibility !== 'private',
                     visibility: file.visibility,
                     shared_with_count: file.shared_with_count || 0,
+                    shared_with_emails: file.shared_with_emails || [],
                     active: file.active,
                 }))
 
@@ -181,6 +182,39 @@ const DashboardPage = () => {
         setShareDialogOpen(true)
     }
 
+    const handleShareSaved = (updatedShare) => {
+        const isShared =
+            updatedShare.shared_with_count > 0 ||
+            updatedShare.visibility === 'public' ||
+            updatedShare.visibility === 'unlisted'
+
+        const updateFile = (file) => {
+            if (file.id !== updatedShare.id) return file
+            return {
+                ...file,
+                visibility: updatedShare.visibility,
+                shared_with_count: updatedShare.shared_with_count,
+                shared_with_emails: updatedShare.shared_with_emails,
+                shared: isShared,
+            }
+        }
+
+        setFiles((prev) => prev.map(updateFile))
+        setFilteredFiles((prev) => prev.map(updateFile))
+        setShareDialogFile((prev) => (prev ? updateFile(prev) : prev))
+        setStats((prevStats) => {
+            const nextFiles = files.map(updateFile)
+            const sharedCount = nextFiles.filter(
+                (f) => f.shared_with_count > 0 || f.visibility === 'public' || f.visibility === 'unlisted'
+            ).length
+
+            return {
+                ...prevStats,
+                sharedCount,
+            }
+        })
+    }
+
     const handleOpenFile = (file) => navigate(`/file/${file.id}`)
 
     const handleDownload = (file) => {
@@ -239,7 +273,12 @@ const DashboardPage = () => {
                 onClose={() => setUploadDialogOpen(false)}
                 onUploaded={() => loadDashboard()}
             />
-            <ShareDialog isOpen={shareDialogOpen} file={shareDialogFile} onClose={() => setShareDialogOpen(false)} />
+            <ShareDialog
+                isOpen={shareDialogOpen}
+                file={shareDialogFile}
+                onClose={() => setShareDialogOpen(false)}
+                onSaved={handleShareSaved}
+            />
             <DeleteDialog
                 isOpen={deleteDialogOpen}
                 file={deleteDialogFile}

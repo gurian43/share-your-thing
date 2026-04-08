@@ -1,4 +1,4 @@
-import { Button, Heading, Text, VStack } from '@chakra-ui/react'
+import { Alert, Button, Heading, Text, VStack } from '@chakra-ui/react'
 import { useState } from 'react'
 import { PasswordInput } from '../ui/password-input'
 import { toaster } from '../ui/toaster'
@@ -120,6 +120,12 @@ const ChangePasswordSection = () => {
                 <Text color="gray.400" fontSize="sm">
                     Password must be at least 8 characters and include a number.
                 </Text>
+                <Alert.Root>
+                    <Alert.Indicator />
+                    <Alert.Content>
+                        <Alert.Title>Changing your password will log you out of all other sessions.</Alert.Title>
+                    </Alert.Content>
+                </Alert.Root>
                 <Button
                     variant="outline"
                     colorPalette="purple"
