@@ -23,10 +23,23 @@ import { LuFile, LuUpload } from 'react-icons/lu'
 import { createSHA256 } from 'hash-wasm'
 
 const CHUNK_SIZE = 5 * 1024 * 1024; // 5MB
+const FILE_NAME_MAX_LENGTH = 120
+const FILE_NAME_ALLOWED_CHARS = /^[a-zA-Z0-9 ._\-()[\]&',+]+$/
+
+const validateCustomFileName = (value) => {
+    const name = String(value || '').trim()
+    if (!name) return 'Please enter a file name'
+    if (name.length > FILE_NAME_MAX_LENGTH) return `File name must be ${FILE_NAME_MAX_LENGTH} characters or less`
+    if (!FILE_NAME_ALLOWED_CHARS.test(name)) {
+        return "Allowed characters: letters, numbers, spaces, . _ - ( ) [ ] & ' , +"
+    }
+    return null
+}
 
 const UploadDialog = ({ isOpen, onClose, onUploaded }) => {
     const [step, setStep] = useState(1)
     const [file, setFile] = useState(null)
+    const [customFileName, setCustomFileName] = useState('')
     const [description, setDescription] = useState('')
     const [visibility, setVisibility] = useState('unlisted')
     const [sharedEmails, setSharedEmails] = useState([])
@@ -55,9 +68,12 @@ const UploadDialog = ({ isOpen, onClose, onUploaded }) => {
         }
     }, [file])
 
+    const nameValidationError = useMemo(() => validateCustomFileName(customFileName), [customFileName])
+
     const reset = () => {
         setStep(1)
         setFile(null)
+        setCustomFileName('')
         setDescription('')
         setVisibility('unlisted')
         setSharedEmails([])
@@ -97,6 +113,17 @@ const UploadDialog = ({ isOpen, onClose, onUploaded }) => {
 
     const handleSubmit = async () => {
         if (!file) return
+
+        const desiredFileName = String(customFileName || '').trim()
+        const fileNameError = validateCustomFileName(desiredFileName)
+        if (fileNameError) {
+            toaster.create({
+                title: fileNameError,
+                type: 'error',
+                duration: 3000,
+            })
+            return
+        }
 
         if (password && password.length > 32) {
             toaster.create({
@@ -141,7 +168,7 @@ const UploadDialog = ({ isOpen, onClose, onUploaded }) => {
             setUploadStage('uploading')
 
             // check existing upload in local
-            const uploadKey = `upload_${file.name}_${file.size}`
+            const uploadKey = `upload_${file.name}_${file.size}_${desiredFileName}`
             const existingUpload = localStorage.getItem(uploadKey)
             let uploadId
             let startChunk = 0
@@ -186,7 +213,7 @@ const UploadDialog = ({ isOpen, onClose, onUploaded }) => {
                 // save upload to local
                 localStorage.setItem(uploadKey, JSON.stringify({
                     uploadId,
-                    fileName: file.name,
+                    fileName: desiredFileName,
                     fileSize: file.size,
                     timestamp: Date.now()
                 }))
@@ -220,7 +247,7 @@ const UploadDialog = ({ isOpen, onClose, onUploaded }) => {
                 chunkFormData.append('chunkIndex', i);
                 chunkFormData.append('totalChunks', chunks);
                 chunkFormData.append('uploadId', uploadId);
-                chunkFormData.append('fileName', file.name);
+                chunkFormData.append('fileName', desiredFileName);
 
                 toaster.update(toastId, {
                     title: 'Uploading...',
@@ -260,7 +287,8 @@ const UploadDialog = ({ isOpen, onClose, onUploaded }) => {
                 headers: { 'Content-Type': 'application/json' },
                 body: JSON.stringify({
                     uploadId,
-                    fileName: file.name,
+                    fileName: desiredFileName,
+                    originalFileName: file.name,
                     fileSize: file.size,
                     totalChunks: chunks,
                     checksum,
@@ -294,7 +322,7 @@ const UploadDialog = ({ isOpen, onClose, onUploaded }) => {
             setUploadStage('idle')
             toaster.update(toastId, {
                 title: 'Upload Complete!',
-                description: `${file.name} uploaded and encrypted successfully`,
+                description: `${desiredFileName} uploaded and encrypted successfully`,
                 type: 'success',
                 duration: 4000,
             })
@@ -352,6 +380,7 @@ const UploadDialog = ({ isOpen, onClose, onUploaded }) => {
                                 onFileChange={({ acceptedFiles }) => {
                                     const f = acceptedFiles?.[0]
                                     setFile(f || null)
+                                    setCustomFileName(f?.name || '')
                                 }}
                             >
                                 <FileUpload.HiddenInput />
@@ -403,6 +432,23 @@ const UploadDialog = ({ isOpen, onClose, onUploaded }) => {
                         </VStack>
                     ) : (
                         <VStack spacing={4} align="stretch">
+                            <Field.Root invalid={Boolean(nameValidationError)}>
+                                <Field.Label color="gray.200">File Name</Field.Label>
+                                <Input
+                                    value={customFileName}
+                                    onChange={(e) => setCustomFileName(e.target.value)}
+                                    placeholder="Enter file name"
+                                    maxLength={FILE_NAME_MAX_LENGTH}
+                                    bg="gray.700"
+                                    borderColor="gray.600"
+                                    color="white"
+                                />
+                                <Field.HelperText color="gray.400">
+                                    Max {FILE_NAME_MAX_LENGTH} chars. Allowed: letters, numbers, spaces, . _ - ( ) [ ] & ' , +
+                                </Field.HelperText>
+                                {nameValidationError && <Field.ErrorText>{nameValidationError}</Field.ErrorText>}
+                            </Field.Root>
+
                             <Field.Root>
                                 <Field.Label color="gray.200">Description</Field.Label>
                                 <Textarea
@@ -557,7 +603,7 @@ const UploadDialog = ({ isOpen, onClose, onUploaded }) => {
                         {step === 1 ? (
                             <Button bg="purple.600" color="white" _hover={{ bg: 'purple.500' }} onClick={handleNext} disabled={!file}>Next</Button>
                         ) : (
-                            <Button bg="purple.600" color="white" _hover={{ bg: 'purple.500' }} onClick={handleSubmit} disabled={submitting}>
+                            <Button bg="purple.600" color="white" _hover={{ bg: 'purple.500' }} onClick={handleSubmit} disabled={submitting || Boolean(nameValidationError)}>
                                 {submitting ? 'Submitting...' : 'Submit'}
                             </Button>
                         )}

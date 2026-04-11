@@ -10,6 +10,10 @@ const fileSchema = new mongoose.Schema({
         type: String, 
         required: true 
     },
+    original_file_name: {
+        type: String,
+        default: ''
+    },
     file_path: { 
         type: String, 
         required: true 

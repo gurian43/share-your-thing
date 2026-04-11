@@ -215,10 +215,10 @@ const DashboardPage = () => {
         })
     }
 
-    const handleOpenFile = (file) => navigate(`/file/${file.id}`)
+    const handleOpenFile = (file) => navigate(`/file/${file.id}?from=dashboard`, { state: { from: 'dashboard' } })
 
     const handleDownload = (file) => {
-        navigate(`/file/${file.id}`, { state: { autoDownload: true } })
+        navigate(`/file/${file.id}?from=dashboard`, { state: { autoDownload: true, from: 'dashboard' } })
     }
 
     const hasResults = filteredFiles.length > 0

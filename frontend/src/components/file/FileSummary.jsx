@@ -18,7 +18,7 @@ const FileSummary = ({ file, onShare, onReport, onUpvote, onDownvote, userVote =
                         </Heading>
                         <HStack spacing={2} flexWrap="wrap">
                             <Badge colorPalette="purple" textTransform="uppercase">
-                                {getFileExtension(file.file_name)}
+                                {getFileExtension(file.original_file_name || file.file_name)}
                             </Badge>
                             <Badge colorPalette={getVisibilityColor(file.visibility)} textTransform="capitalize">
                                 {file.visibility}
@@ -83,12 +83,6 @@ const FileSummary = ({ file, onShare, onReport, onUpvote, onDownvote, userVote =
     )
 }
 
-const getFileExtension = (fileName) => {
-    if (!fileName) return ''
-    const parts = fileName.split('.')
-    return parts.length > 1 ? parts.pop().toLowerCase() : fileName.toLowerCase()
-}
-
 const getFileIcon = (fileName, size = 24) => {
     const ext = fileName?.split('.').pop()?.toLowerCase()
     const iconProps = { size }
@@ -130,6 +124,12 @@ const getFileIcon = (fileName, size = 24) => {
         default:
             return <LuFile {...iconProps} />
     }
+}
+
+const getFileExtension = (fileName) => {
+    if (!fileName) return ''
+    const parts = fileName.split('.')
+    return parts.length > 1 ? parts.pop().toLowerCase() : fileName.toLowerCase()
 }
 
 const getVisibilityColor = (visibility) => {

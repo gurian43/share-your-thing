@@ -1,5 +1,5 @@
 import { Card, HStack, Heading, Separator, Text, VStack } from '@chakra-ui/react'
-import { LuCalendar, LuDownload, LuHardDrive, LuUser } from 'react-icons/lu'
+import { LuCalendar, LuDownload, LuHardDrive, LuUser, LuFile } from 'react-icons/lu'
 
 const InfoRow = ({ icon, label, value, valueColor = 'white' }) => (
     <HStack justify="space-between">
@@ -20,6 +20,11 @@ const FileInfoPanel = ({ file, timeRemaining, formatFileSize, formatDate }) => {
                         File Information
                     </Heading>
                     <Separator />
+                    <InfoRow
+                        icon={<LuFile size={20} color="gray" />}
+                        label="Original Name"
+                        value={file.original_file_name || file.file_name}
+                    />
                     <InfoRow
                         icon={<LuHardDrive size={20} color="gray" />}
                         label="Size"

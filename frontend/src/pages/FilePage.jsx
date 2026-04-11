@@ -36,6 +36,10 @@ const FilePage = () => {
     const downloadTaskRef = useRef(null)
     const autoDownloadTriggeredRef = useRef(false)
     const isOwnFile = Boolean(user && file?.owner?._id && user._id && user._id.toString() === file.owner._id.toString())
+    const searchParams = new URLSearchParams(location.search)
+    const navigationSource = location.state?.from || searchParams.get('from')
+    const backTarget = navigationSource === 'browse' ? '/browse' : navigationSource === 'dashboard' ? '/dashboard' : null
+    const backLabel = navigationSource === 'browse' ? 'Back to Browse' : navigationSource === 'dashboard' ? 'Back to Dashboard' : ''
 
     useEffect(() => {
         document.title = 'File - Share Your Thing'
@@ -346,16 +350,16 @@ const FilePage = () => {
 
             <Container maxW="1200px" py={6} px={{ base: 4, md: 6 }} flex={1}>
                 <VStack spacing={6} align="stretch">
-                    {user && (
+                    {backTarget && (
                         <Button
                             variant="ghost"
                             color="gray.400"
-                            onClick={() => navigate('/dashboard')}
+                            onClick={() => navigate(backTarget)}
                             alignSelf="flex-start"
                             _hover={{ color: 'white', bg: 'gray.700' }}
                         >
                             <LuArrowLeft />
-                            Back to Dashboard
+                            {backLabel}
                         </Button>
                     )}
 

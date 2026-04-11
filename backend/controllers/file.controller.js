@@ -26,6 +26,27 @@ const getVoteSummary = async (fileId, userId) => {
 
 const normalizeEmail = (email) => String(email || '').trim().toLowerCase();
 
+const validateUploadFileName = (rawName) => {
+    const name = String(rawName || '').trim();
+
+    if (!name) {
+        return { valid: false, message: 'File name is required' };
+    }
+
+    if (name.length > 120) {
+        return { valid: false, message: `File name must be 120 characters or less` };
+    }
+
+    if (!/^[a-zA-Z0-9 ._\-()[\]&',+]+$/.test(name)) {
+        return {
+            valid: false,
+            message: "File name contains invalid characters. Allowed: letters, numbers, spaces, . _ - ( ) [ ] & ' , +",
+        };
+    }
+
+    return { valid: true, value: name };
+};
+
 export const getFileById = async (req, res) => {
     try {
         const { fileId } = req.params;
@@ -376,6 +397,11 @@ export const uploadChunk = async (req, res) => {
             return res.status(400).json({ status: 400, message: 'Missing required fields' });
         }
 
+        const fileNameValidation = validateUploadFileName(fileName);
+        if (!fileNameValidation.valid) {
+            return res.status(400).json({ status: 400, message: fileNameValidation.message });
+        }
+
         // Create temp directory for this upload
         const uploadsRoot = path.resolve(process.cwd(), 'uploads');
         const userKey = String(userId);
@@ -437,6 +463,13 @@ export const finalizeUpload = async (req, res) => {
             return res.status(400).json({ status: 400, message: 'Missing required fields' });
         }
 
+        const fileNameValidation = validateUploadFileName(fileName);
+        if (!fileNameValidation.valid) {
+            return res.status(400).json({ status: 400, message: fileNameValidation.message });
+        }
+        const safeFileName = fileNameValidation.value;
+        const originalFileName = String(req.body?.originalFileName || '').trim() || safeFileName;
+
         if (!Array.isArray(sharedWithEmails)) {
             return res.status(400).json({ status: 400, message: 'sharedWithEmails must be an array' });
         }
@@ -458,7 +491,7 @@ export const finalizeUpload = async (req, res) => {
 
         // Merge chunks
         const uniqueId = Math.random().toString(36).substring(2, 15);
-        const sanitizedOriginal = fileName.replace(/[^a-zA-Z0-9._-]/g, '_');
+        const sanitizedOriginal = safeFileName.replace(/[^a-zA-Z0-9._-]/g, '_');
         const finalFileName = `${sanitizedOriginal}-${uniqueId}`;
         const finalFilePath = path.join(uploadsRoot, userKey, finalFileName);
 
@@ -562,7 +595,8 @@ export const finalizeUpload = async (req, res) => {
 
             const newFile = new File({
                 owner: userId,
-                file_name: fileName,
+                file_name: safeFileName,
+                original_file_name: originalFileName,
                 file_path: storedRelPath,
                 file_size: fileSize,
                 visibility: safeVisibility,
@@ -666,6 +700,130 @@ export const voteFile = async (req, res) => {
         });
     } catch (err) {
         console.error('Error voting file:', err);
+        return res.status(500).json({ status: 500, message: 'Internal server error' });
+    }
+};
+
+export const getPublicFiles = async (req, res) => {
+    try {
+        const search = String(req.query?.search || '').trim();
+        const sortBy = String(req.query?.sortBy || 'date').toLowerCase();
+        const sortOrder = String(req.query?.sortOrder || 'desc').toLowerCase() === 'asc' ? 1 : -1;
+        const passwordFilterRaw = String(req.query?.passwordFilter || '').trim().toLowerCase();
+        const passwordFilter = passwordFilterRaw === '+'
+            ? 'protected'
+            : passwordFilterRaw === '-'
+                ? 'unprotected'
+                : passwordFilterRaw;
+        const page = Math.max(parseInt(req.query?.page, 10) || 1, 1);
+        const limit = Math.min(Math.max(parseInt(req.query?.limit, 10) || 12, 1), 50);
+
+        const sortFieldMap = {
+            date: 'uploaded_at',
+            score: 'score',
+            size: 'file_size',
+        };
+        const sortField = sortFieldMap[sortBy] || 'uploaded_at';
+
+        const match = {
+            visibility: 'public',
+            active: true,
+            $or: [
+                { expires_at: null },
+                { expires_at: { $gt: new Date() } },
+            ],
+        };
+
+        if (search) {
+            match.file_name = { $regex: search, $options: 'i' };
+        }
+
+        if (passwordFilter === 'protected') {
+            match.password = { $ne: null };
+        } else if (passwordFilter === 'unprotected') {
+            match.password = null;
+        }
+
+        const skip = (page - 1) * limit;
+
+        const results = await File.aggregate([
+            { $match: match },
+            {
+                $lookup: {
+                    from: 'votes',
+                    localField: '_id',
+                    foreignField: 'file_id',
+                    as: 'votes',
+                },
+            },
+            {
+                $lookup: {
+                    from: 'users',
+                    localField: 'owner',
+                    foreignField: '_id',
+                    as: 'owner_data',
+                },
+            },
+            {
+                $addFields: {
+                    score: { $sum: '$votes.value' },
+                    owner_data: { $arrayElemAt: ['$owner_data', 0] },
+                },
+            },
+            { $sort: { [sortField]: sortOrder, uploaded_at: -1, _id: -1 } },
+            {
+                $facet: {
+                    data: [
+                        { $skip: skip },
+                        { $limit: limit },
+                        {
+                            $project: {
+                                _id: 1,
+                                file_name: 1,
+                                file_size: 1,
+                                uploaded_at: 1,
+                                download_count: 1,
+                                password: 1,
+                                description: 1,
+                                score: 1,
+                                owner: {
+                                    _id: '$owner_data._id',
+                                    username: '$owner_data.username',
+                                },
+                            },
+                        },
+                    ],
+                    meta: [{ $count: 'total' }],
+                },
+            },
+        ]);
+
+        const files = results[0]?.data || [];
+        const total = results[0]?.meta?.[0]?.total || 0;
+        const totalPages = Math.max(Math.ceil(total / limit), 1);
+
+        return res.status(200).json({
+            status: 200,
+            files,
+            pagination: {
+                page,
+                limit,
+                total,
+                totalPages,
+                hasNextPage: page < totalPages,
+                hasPrevPage: page > 1,
+            },
+            sort: {
+                sortBy: sortField === 'uploaded_at' ? 'date' : sortBy,
+                sortOrder: sortOrder === 1 ? 'asc' : 'desc',
+            },
+            filters: {
+                search,
+                passwordFilter: passwordFilterRaw || 'all',
+            },
+        });
+    } catch (err) {
+        console.error('Error fetching public files:', err);
         return res.status(500).json({ status: 500, message: 'Internal server error' });
     }
 };
