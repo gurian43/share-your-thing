@@ -19,7 +19,7 @@ const chunkStorage = multer.diskStorage({
 	}
 });
 
-const chunkUpload = multer({ storage: chunkStorage, limits: { fileSize: 10 * 1024 * 1024 } });
+const chunkUpload = multer({ storage: chunkStorage, limits: { fileSize: 5 * 1024 * 1024 } });
 
 router.get('/upload/status', requireAuth, getUploadStatus);
 router.post('/upload/chunk', requireAuth, chunkUpload.single('chunk'), uploadChunk);
