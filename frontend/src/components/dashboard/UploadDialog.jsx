@@ -24,6 +24,7 @@ import { LuFile, LuUpload } from 'react-icons/lu'
 import { createSHA256 } from 'hash-wasm'
 
 const CHUNK_SIZE = 2 * 1024 * 1024 // 2MB
+const UPLOAD_CONCURRENCY = 4
 const FILE_NAME_MAX_LENGTH = 120
 const FILE_NAME_ALLOWED_CHARS = /^[a-zA-Z0-9 ._\-()[\]&',+]+$/
 
@@ -54,7 +55,7 @@ const UploadDialog = ({ isOpen, onClose, onUploaded }) => {
     const [totalChunks, setTotalChunks] = useState(0)
     const [uploadStage, setUploadStage] = useState('idle') // idle, uploading, merging, encrypting
     const cancelRequestedRef = useRef(false)
-    const chunkAbortControllerRef = useRef(null)
+    const abortersRef = useRef(new Set())
 
     const visibilityOptions = [
         { label: 'Public', value: 'public' },
@@ -90,7 +91,8 @@ const UploadDialog = ({ isOpen, onClose, onUploaded }) => {
         setTotalChunks(0)
         setUploadStage('idle')
         cancelRequestedRef.current = false
-        chunkAbortControllerRef.current = null
+        abortersRef.current.forEach((controller) => controller.abort())
+        abortersRef.current.clear()
     }
 
     const closeAndReset = () => {
@@ -232,7 +234,7 @@ const UploadDialog = ({ isOpen, onClose, onUploaded }) => {
                 if (cancelRequestedRef.current) return
 
                 cancelRequestedRef.current = true
-                chunkAbortControllerRef.current?.abort()
+                abortersRef.current.forEach((controller) => controller.abort())
                 localStorage.removeItem(uploadKey)
                 void cancelUploadOnServer()
 
@@ -289,81 +291,120 @@ const UploadDialog = ({ isOpen, onClose, onUploaded }) => {
                 }))
             }
 
-            // start checksum
-            const hasher = await createSHA256();
-            hasher.init();
-
-            // upload chunks
+            const uploadedChunkSet = new Set(uploadedChunks)
+            const pendingChunkIndexes = []
             for (let i = 0; i < chunks; i++) {
-                if (cancelRequestedRef.current) {
-                    throw new Error('UPLOAD_CANCELLED')
+                if (!uploadedChunkSet.has(i)) {
+                    pendingChunkIndexes.push(i)
                 }
+            }
 
-                const start = i * CHUNK_SIZE;
-                const end = Math.min(start + CHUNK_SIZE, file.size);
-                const chunk = file.slice(start, end);
+            let completedChunkCount = uploadedChunkSet.size
+            setUploadedChunks(completedChunkCount)
+            setUploadProgress((completedChunkCount / chunks) * 100)
 
-                const chunkBuffer = await chunk.arrayBuffer();
-                hasher.update(new Uint8Array(chunkBuffer));
-
-                const uploaded = i + 1;
-                const pct = (uploaded / chunks) * 100;
-                setUploadedChunks(uploaded);
-                setUploadProgress(pct);
-
-                // Skip already uploaded chunks
-                if (uploadedChunks.includes(i)) {
-                    continue;
-                }
-
-                const chunkFormData = new FormData();
-                chunkFormData.append('chunk', chunk);
-                chunkFormData.append('chunkIndex', i);
-                chunkFormData.append('totalChunks', chunks);
-                chunkFormData.append('uploadId', uploadId);
-                chunkFormData.append('fileName', desiredFileName);
+            const updateProgress = () => {
+                const pct = (completedChunkCount / chunks) * 100
+                setUploadedChunks(completedChunkCount)
+                setUploadProgress(pct)
 
                 toaster.update(toastId, {
                     title: 'Uploading...',
-                    description: `${Math.round(pct)}% complete (${uploaded}/${chunks} chunks)`,
+                    description: `${Math.round(pct)}% complete (${completedChunkCount}/${chunks} chunks)`,
                     type: 'loading',
                     duration: 60000,
                     action: {
                         label: 'Cancel',
                         onClick: requestCancel,
-                    }
+                    },
                 })
+            }
 
-                chunkAbortControllerRef.current = new AbortController()
+            updateProgress()
 
-                const chunkRes = await fetch('/api/file/upload/chunk', {
-                    method: 'POST',
-                    credentials: 'include',
-                    body: chunkFormData,
-                    signal: chunkAbortControllerRef.current.signal,
-                })
+            const parseChunkError = async (response, chunkIndex) => {
+                const responseText = await response.text().catch(() => '')
+                let parsedMessage = ''
 
-                if (!chunkRes.ok) {
-                    const responseText = await chunkRes.text().catch(() => '')
-                    let parsedMessage = ''
+                try {
+                    const responseJson = JSON.parse(responseText)
+                    parsedMessage = responseJson?.message || ''
+                } catch {
+                    parsedMessage = responseText || ''
+                }
 
-                    try {
-                        const maybeJson = JSON.parse(responseText)
-                        parsedMessage = maybeJson?.message || ''
-                    } catch {
-                        parsedMessage = responseText || ''
+                throw new Error(
+                    parsedMessage
+                        ? `Chunk ${chunkIndex + 1} failed (${response.status}): ${parsedMessage}`
+                        : `Chunk ${chunkIndex + 1} failed (${response.status})`
+                )
+            }
+
+            const uploadChunkByIndex = async (chunkIndex) => {
+                if (cancelRequestedRef.current) {
+                    throw new Error('UPLOAD_CANCELLED')
+                }
+
+                const start = chunkIndex * CHUNK_SIZE
+                const end = Math.min(start + CHUNK_SIZE, file.size)
+                const chunk = file.slice(start, end)
+
+                const chunkFormData = new FormData()
+                chunkFormData.append('chunk', chunk)
+                chunkFormData.append('chunkIndex', chunkIndex)
+                chunkFormData.append('totalChunks', chunks)
+                chunkFormData.append('uploadId', uploadId)
+                chunkFormData.append('fileName', desiredFileName)
+
+                const controller = new AbortController()
+                abortersRef.current.add(controller)
+
+                try {
+                    const chunkRes = await fetch('/api/file/upload/chunk', {
+                        method: 'POST',
+                        credentials: 'include',
+                        body: chunkFormData,
+                        signal: controller.signal,
+                    })
+
+                    if (!chunkRes.ok) {
+                        await parseChunkError(chunkRes, chunkIndex)
                     }
 
-                    throw new Error(
-                        parsedMessage
-                            ? `Chunk ${i + 1} failed (${chunkRes.status}): ${parsedMessage}`
-                            : `Chunk ${i + 1} failed (${chunkRes.status})`
-                    )
+                    completedChunkCount += 1
+                    updateProgress()
+                } finally {
+                    abortersRef.current.delete(controller)
                 }
             }
 
-            // Complete checksum
-            const checksum = hasher.digest('hex');
+            let chunkCursor = 0
+            const workerCount = Math.min(UPLOAD_CONCURRENCY, Math.max(1, pendingChunkIndexes.length))
+
+            const worker = async () => {
+                while (chunkCursor < pendingChunkIndexes.length) {
+                    const currentCursor = chunkCursor
+                    chunkCursor += 1
+                    await uploadChunkByIndex(pendingChunkIndexes[currentCursor])
+                }
+            }
+
+            await Promise.all(Array.from({ length: workerCount }, worker))
+
+            const hasher = await createSHA256()
+            hasher.init()
+            for (let i = 0; i < chunks; i++) {
+                if (cancelRequestedRef.current) {
+                    throw new Error('UPLOAD_CANCELLED')
+                }
+
+                const start = i * CHUNK_SIZE
+                const end = Math.min(start + CHUNK_SIZE, file.size)
+                const chunkBuffer = await file.slice(start, end).arrayBuffer()
+                hasher.update(new Uint8Array(chunkBuffer))
+            }
+
+            const checksum = hasher.digest('hex')
 
             setUploadStage('merging')
             toaster.update(toastId, {
@@ -450,7 +491,8 @@ const UploadDialog = ({ isOpen, onClose, onUploaded }) => {
                 duration: 5000,
             })
         } finally {
-            chunkAbortControllerRef.current = null
+            abortersRef.current.forEach((controller) => controller.abort())
+            abortersRef.current.clear()
             cancelRequestedRef.current = false
             localStorage.removeItem(uploadLockKey)
             setSubmitting(false);
