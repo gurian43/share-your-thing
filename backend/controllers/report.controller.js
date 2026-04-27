@@ -26,12 +26,12 @@ export const reportFile = async (req, res) => {
             return res.status(400).json({ status: 400, message: 'Invalid report reason' });
         }
 
-        const file = await File.findById(fileId).select('_id file_name');
+        const file = await File.findById(fileId).select('_id file_name owner');
         if (!file) {
             return res.status(404).json({ status: 404, message: 'File not found' });
         }
 
-        if (file.owner.toString() === reporterId.toString()) {
+        if (file.owner && file.owner.toString() === reporterId.toString()) {
             return res.status(403).json({ status: 403, message: 'You cannot report your own file' });
         }
 
