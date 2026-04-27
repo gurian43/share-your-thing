@@ -1,6 +1,6 @@
 import express from 'express';
 import multer from 'multer';
-import { getFileById, getUserFiles, getPublicFiles, deleteFile, uploadChunk, finalizeUpload, getUploadStatus, downloadFile, voteFile, updateFileShareSettings } from '../controllers/file.controller.js';
+import { getFileById, getUserFiles, getPublicFiles, deleteFile, uploadChunk, finalizeUpload, getUploadStatus, cancelUpload, downloadFile, voteFile, updateFileShareSettings } from '../controllers/file.controller.js';
 import { reportFile } from '../controllers/report.controller.js';
 import requireAuth from '../services/protectedRoute.js';
 import os from 'os';
@@ -19,10 +19,11 @@ const chunkStorage = multer.diskStorage({
 	}
 });
 
-const chunkUpload = multer({ storage: chunkStorage, limits: { fileSize: 5 * 1024 * 1024 } });
+const chunkUpload = multer({ storage: chunkStorage, limits: { fileSize: 8 * 1024 * 1024 } });
 
 router.get('/upload/status', requireAuth, getUploadStatus);
 router.post('/upload/chunk', requireAuth, chunkUpload.single('chunk'), uploadChunk);
+router.post('/upload/cancel', requireAuth, cancelUpload);
 router.post('/upload/finalize', requireAuth, finalizeUpload);
 router.get('/', requireAuth, getUserFiles);
 router.get('/public', getPublicFiles);

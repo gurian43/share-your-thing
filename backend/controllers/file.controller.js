@@ -384,6 +384,32 @@ export const getUploadStatus = async (req, res) => {
     }
 };
 
+export const cancelUpload = async (req, res) => {
+    try {
+        const { uploadId } = req.body || {};
+        const userId = req.session.userId;
+
+        if (!uploadId) {
+            return res.status(400).json({ status: 400, message: 'Upload ID is required' });
+        }
+
+        const uploadsRoot = path.resolve(process.cwd(), 'uploads');
+        const userKey = String(userId);
+        const tempDir = path.join(uploadsRoot, userKey, '.temp', String(uploadId));
+
+        if (!fs.existsSync(tempDir)) {
+            return res.status(200).json({ status: 200, message: 'Upload already cleared' });
+        }
+
+        await fs.promises.rm(tempDir, { recursive: true, force: true });
+
+        return res.status(200).json({ status: 200, message: 'Upload cancelled and temporary chunks deleted' });
+    } catch (err) {
+        console.error('Error cancelling upload:', err);
+        return res.status(500).json({ status: 500, message: 'Internal server error' });
+    }
+};
+
 export const uploadChunk = async (req, res) => {
     try {
         if (!req.file) {

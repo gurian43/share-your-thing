@@ -1,4 +1,4 @@
-import { useMemo, useState } from 'react'
+import { useMemo, useRef, useState } from 'react'
 import {
     Box,
     Button,
@@ -22,7 +22,7 @@ import { toaster } from '../ui/toaster'
 import { LuFile, LuUpload } from 'react-icons/lu'
 import { createSHA256 } from 'hash-wasm'
 
-const CHUNK_SIZE = 256 * 1024 // 256KB
+const CHUNK_SIZE = 2 * 1024 * 1024 // 2MB
 const FILE_NAME_MAX_LENGTH = 120
 const FILE_NAME_ALLOWED_CHARS = /^[a-zA-Z0-9 ._\-()[\]&',+]+$/
 
@@ -52,6 +52,8 @@ const UploadDialog = ({ isOpen, onClose, onUploaded }) => {
     const [uploadedChunks, setUploadedChunks] = useState(0)
     const [totalChunks, setTotalChunks] = useState(0)
     const [uploadStage, setUploadStage] = useState('idle') // idle, uploading, merging, encrypting
+    const cancelRequestedRef = useRef(false)
+    const chunkAbortControllerRef = useRef(null)
 
     const visibilityOptions = [
         { label: 'Public', value: 'public' },
@@ -86,6 +88,8 @@ const UploadDialog = ({ isOpen, onClose, onUploaded }) => {
         setUploadedChunks(0)
         setTotalChunks(0)
         setUploadStage('idle')
+        cancelRequestedRef.current = false
+        chunkAbortControllerRef.current = null
     }
 
     const closeAndReset = () => {
@@ -151,6 +155,7 @@ const UploadDialog = ({ isOpen, onClose, onUploaded }) => {
         }
         
         setSubmitting(true)
+        cancelRequestedRef.current = false
 
         const toastId = toaster.create({
             title: 'Uploading file...',
@@ -173,6 +178,37 @@ const UploadDialog = ({ isOpen, onClose, onUploaded }) => {
             let uploadId
             let startChunk = 0
             let uploadedChunks = []
+
+            const cancelUploadOnServer = async () => {
+                if (!uploadId) return
+
+                try {
+                    await fetch('/api/file/upload/cancel', {
+                        method: 'POST',
+                        credentials: 'include',
+                        headers: { 'Content-Type': 'application/json' },
+                        body: JSON.stringify({ uploadId }),
+                    })
+                } catch (err) {
+                    console.error('Error cancelling upload on server:', err)
+                }
+            }
+
+            const requestCancel = () => {
+                if (cancelRequestedRef.current) return
+
+                cancelRequestedRef.current = true
+                chunkAbortControllerRef.current?.abort()
+                localStorage.removeItem(uploadKey)
+                void cancelUploadOnServer()
+
+                toaster.update(toastId, {
+                    title: 'Cancelling upload...',
+                    description: 'Stopping transfer and removing already uploaded chunks',
+                    type: 'loading',
+                    duration: 60000,
+                })
+            }
 
             if (existingUpload) {
                 const uploadState = JSON.parse(existingUpload)
@@ -225,6 +261,10 @@ const UploadDialog = ({ isOpen, onClose, onUploaded }) => {
 
             // upload chunks
             for (let i = 0; i < chunks; i++) {
+                if (cancelRequestedRef.current) {
+                    throw new Error('UPLOAD_CANCELLED')
+                }
+
                 const start = i * CHUNK_SIZE;
                 const end = Math.min(start + CHUNK_SIZE, file.size);
                 const chunk = file.slice(start, end);
@@ -254,12 +294,19 @@ const UploadDialog = ({ isOpen, onClose, onUploaded }) => {
                     description: `${Math.round(pct)}% complete (${uploaded}/${chunks} chunks)`,
                     type: 'loading',
                     duration: 60000,
+                    action: {
+                        label: 'Cancel',
+                        onClick: requestCancel,
+                    }
                 })
+
+                chunkAbortControllerRef.current = new AbortController()
 
                 const chunkRes = await fetch('/api/file/upload/chunk', {
                     method: 'POST',
                     credentials: 'include',
                     body: chunkFormData,
+                    signal: chunkAbortControllerRef.current.signal,
                 })
 
                 if (!chunkRes.ok) {
@@ -343,6 +390,23 @@ const UploadDialog = ({ isOpen, onClose, onUploaded }) => {
 
             closeAndReset()
         } catch (err) {
+            const wasCancelled =
+                cancelRequestedRef.current ||
+                err?.name === 'AbortError' ||
+                err?.message === 'UPLOAD_CANCELLED'
+
+            if (wasCancelled) {
+                localStorage.removeItem(`upload_${file.name}_${file.size}_${String(customFileName || '').trim()}`)
+                toaster.update(toastId, {
+                    title: 'Upload cancelled',
+                    description: 'Uploaded chunks were cleared',
+                    type: 'info',
+                    duration: 4000,
+                })
+                setUploadStage('idle')
+                return
+            }
+
             console.error('Upload error:', err)
             setUploadStage('idle')
             toaster.update(toastId, {
@@ -352,6 +416,8 @@ const UploadDialog = ({ isOpen, onClose, onUploaded }) => {
                 duration: 5000,
             })
         } finally {
+            chunkAbortControllerRef.current = null
+            cancelRequestedRef.current = false
             setSubmitting(false);
         }
     }
