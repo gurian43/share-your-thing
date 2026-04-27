@@ -22,7 +22,7 @@ import { toaster } from '../ui/toaster'
 import { LuFile, LuUpload } from 'react-icons/lu'
 import { createSHA256 } from 'hash-wasm'
 
-const CHUNK_SIZE = 5 * 1024 * 1024; // 5MB
+const CHUNK_SIZE = 256 * 1024 // 256KB
 const FILE_NAME_MAX_LENGTH = 120
 const FILE_NAME_ALLOWED_CHARS = /^[a-zA-Z0-9 ._\-()[\]&',+]+$/
 
@@ -263,7 +263,21 @@ const UploadDialog = ({ isOpen, onClose, onUploaded }) => {
                 })
 
                 if (!chunkRes.ok) {
-                    throw new Error(`Failed to upload chunk ${i + 1}`)
+                    const responseText = await chunkRes.text().catch(() => '')
+                    let parsedMessage = ''
+
+                    try {
+                        const maybeJson = JSON.parse(responseText)
+                        parsedMessage = maybeJson?.message || ''
+                    } catch {
+                        parsedMessage = responseText || ''
+                    }
+
+                    throw new Error(
+                        parsedMessage
+                            ? `Chunk ${i + 1} failed (${chunkRes.status}): ${parsedMessage}`
+                            : `Chunk ${i + 1} failed (${chunkRes.status})`
+                    )
                 }
             }
 
