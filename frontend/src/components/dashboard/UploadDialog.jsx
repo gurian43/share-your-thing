@@ -19,6 +19,7 @@ import {
     VStack,
 } from '@chakra-ui/react'
 import { toaster } from '../ui/toaster'
+import { formatBytes } from '../../utils/fileUtils'
 import { LuFile, LuUpload } from 'react-icons/lu'
 import { createSHA256 } from 'hash-wasm'
 
@@ -97,6 +98,22 @@ const UploadDialog = ({ isOpen, onClose, onUploaded }) => {
         onClose?.()
     }
 
+    const handleDialogOpenChange = (e) => {
+        if (e.open) return
+
+        if (submitting) {
+            toaster.create({
+                title: 'Upload in progress',
+                description: 'Cancel the upload first if you want to close this dialog.',
+                type: 'info',
+                duration: 3000,
+            })
+            return
+        }
+
+        closeAndReset()
+    }
+
     const handleNext = () => {
         if (!file) return
         setStep(2)
@@ -156,6 +173,23 @@ const UploadDialog = ({ isOpen, onClose, onUploaded }) => {
         
         setSubmitting(true)
         cancelRequestedRef.current = false
+
+        const uploadLockKey = `upload_lock_${file.name}_${file.size}_${desiredFileName}`
+        const existingLockTs = Number(localStorage.getItem(uploadLockKey) || 0)
+        const LOCK_TTL_MS = 5 * 60 * 1000
+
+        if (existingLockTs && Date.now() - existingLockTs < LOCK_TTL_MS) {
+            toaster.create({
+                title: 'This file is already uploading',
+                description: 'Wait for the current upload to finish or cancel it first.',
+                type: 'info',
+                duration: 3500,
+            })
+            setSubmitting(false)
+            return
+        }
+
+        localStorage.setItem(uploadLockKey, String(Date.now()))
 
         const toastId = toaster.create({
             title: 'Uploading file...',
@@ -418,6 +452,7 @@ const UploadDialog = ({ isOpen, onClose, onUploaded }) => {
         } finally {
             chunkAbortControllerRef.current = null
             cancelRequestedRef.current = false
+            localStorage.removeItem(uploadLockKey)
             setSubmitting(false);
         }
     }
@@ -429,7 +464,7 @@ const UploadDialog = ({ isOpen, onClose, onUploaded }) => {
     const stepIndex = Math.max(0, Math.min(1, step - 1));
 
     return (
-        <Dialog.Root open={isOpen} onOpenChange={(e) => { if (!e.open) closeAndReset() }} zIndex={9999}>
+        <Dialog.Root open={isOpen} onOpenChange={handleDialogOpenChange} zIndex={9999}>
             <Dialog.Backdrop />
             <Dialog.Content position="fixed" top="40%" left="50%" transform="translate(-50%, -50%)" maxW="600px" bg="gray.800">
                 <Dialog.Header display="flex" flexDirection="column" alignItems="center">
@@ -504,7 +539,7 @@ const UploadDialog = ({ isOpen, onClose, onUploaded }) => {
                                             {fileInfo.name}
                                         </Text>
                                         <Text color="gray.400" fontSize="xs">
-                                            {Math.round(fileInfo.size / 1024)} KB
+                                            {formatBytes(fileInfo.size)}
                                         </Text>
                                     </Box>
                                 </HStack>
