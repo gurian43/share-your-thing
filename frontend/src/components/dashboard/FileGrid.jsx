@@ -1,8 +1,8 @@
 import { Box, Card, Flex, Grid, HStack, IconButton, Separator, Text, VStack, Badge } from '@chakra-ui/react'
-import { LuDownload, LuShare2, LuTrash2 } from 'react-icons/lu'
+import { LuDownload, LuShare2, LuTrash2, LuPencil } from 'react-icons/lu'
 import { formatBytes, getFileIcon, trimFileName } from '../../utils/fileUtils'
 
-const FileGrid = ({ files, onOpenFile, onShare, onDelete, onDownload }) => {
+const FileGrid = ({ files, onOpenFile, onShare, onDelete, onDownload, onEdit }) => {
     return (
         <Grid templateColumns={{ base: 'repeat(2, minmax(0, 1fr))', sm: 'repeat(3, minmax(0, 1fr))', md: 'repeat(auto-fill, minmax(200px, 1fr))' }} gap={4}>
             {files.map((file) => (
@@ -66,6 +66,18 @@ const FileGrid = ({ files, onOpenFile, onShare, onDelete, onDownload }) => {
                                     }}
                                 >
                                     <LuDownload size={16} />
+                                </IconButton>
+                                <IconButton
+                                    size="xs"
+                                    variant="ghost"
+                                    color="gray.400"
+                                    _hover={{ color: 'purple.300', bg: 'gray.700' }}
+                                    onClick={(e) => {
+                                        e.stopPropagation()
+                                        onEdit && onEdit(file)
+                                    }}
+                                >
+                                    <LuPencil size={16} />
                                 </IconButton>
                                 <IconButton
                                     size="xs"

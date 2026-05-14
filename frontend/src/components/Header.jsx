@@ -12,6 +12,7 @@ const Header = ({variant}) => {
     const location = useLocation()
     const { user, logout, loading } = useAuth()
     const isMobile = useBreakpointValue({ base: true, md: false })
+    const isAdmin = Boolean(user?.admin || user?.role === 'admin')
 
     const handleLogout = async () => {
         const {success, message} = await logout()
@@ -106,7 +107,7 @@ const Header = ({variant}) => {
                         <AvatarGroup size='sm' max={3} cursor={"pointer"}>
                             <Avatar.Root colorPalette={"purple"}>
                                 <Avatar.Fallback name={user.username} />
-                                <Avatar.Image src={user.avatarUrl} alt={user.username || "User Avatar"} />
+                                <Avatar.Image src={user.profile?.avatar_url || user.avatarUrl} alt={user.username || "User Avatar"} />
                             </Avatar.Root>
                         </AvatarGroup>
                     </Menu.Trigger>
@@ -117,7 +118,7 @@ const Header = ({variant}) => {
                                     value="profile"
                                     color="white"
                                     cursor="pointer"
-                                    onClick={() => navigate('/profile/' + user._id)}
+                                    onClick={() => navigate('/profile')}
                                     _hover={{ bg: 'gray.700' }}
                                 >
                                     Profile
@@ -131,6 +132,17 @@ const Header = ({variant}) => {
                                 >
                                     Account Settings
                                 </Menu.Item>
+                                {isAdmin && (
+                                    <Menu.Item 
+                                        value="admin"
+                                        color="white"
+                                        cursor="pointer"
+                                        onClick={() => navigate('/admin')}
+                                        _hover={{ bg: 'gray.700' }}
+                                    >
+                                        Admin
+                                    </Menu.Item>
+                                )}
                                 <Menu.Item 
                                     value="logout"
                                     onClick={handleLogout}

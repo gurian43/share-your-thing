@@ -328,6 +328,48 @@ export const getPublicProfile = async (req, res) => {
     }
 };
 
+export const updateProfile = async (req, res) => {
+    try {
+        const userId = req.session.userId;
+        const avatarUrl = String(req.body?.avatar_url ?? '').trim();
+        const bio = String(req.body?.bio ?? '').trim();
+
+        if (avatarUrl.length > 2048) {
+            return res.status(400).json({ status: 400, message: 'Avatar URL must be 2048 characters or less' });
+        }
+
+        if (bio.length > 500) {
+            return res.status(400).json({ status: 400, message: 'Bio must be 500 characters or less' });
+        }
+
+        const user = await User.findById(userId);
+        if (!user) {
+            return res.status(404).json({ status: 404, message: 'User not found' });
+        }
+
+        if (!user.profile) {
+            user.profile = {};
+        }
+
+        user.profile.avatar_url = avatarUrl;
+        user.profile.bio = bio;
+
+        await user.save();
+
+        return res.status(200).json({
+            status: 200,
+            message: 'Profile updated successfully',
+            profile: {
+                avatar_url: user.profile.avatar_url || '',
+                bio: user.profile.bio || '',
+            },
+        });
+    } catch (err) {
+        console.error(err);
+        return res.status(500).json({ status: 500, message: 'Server error' });
+    }
+};
+
 export const recalculateStorageUsage = async (req, res) => {
     const userId = req.session.userId;
 

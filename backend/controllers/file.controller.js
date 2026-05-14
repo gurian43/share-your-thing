@@ -55,7 +55,7 @@ export const getFileById = async (req, res) => {
             return res.status(400).json({ status: 400, message: 'File ID is required' });
         }
 
-        const file = await File.findById(fileId).populate('owner', 'email username');
+        const file = await File.findById(fileId).populate('owner', '_id email username profile');
 
         if (!file) {
             return res.status(404).json({ status: 404, message: 'File not found' });
@@ -850,6 +850,110 @@ export const getPublicFiles = async (req, res) => {
         });
     } catch (err) {
         console.error('Error fetching public files:', err);
+        return res.status(500).json({ status: 500, message: 'Internal server error' });
+    }
+};
+
+export const changeFilePassword = async (req, res) => {
+    try {
+        const { fileId } = req.params;
+        const userId = req.session.userId;
+        const { password } = req.body || {};
+
+        if (!userId) {
+            return res.status(401).json({ status: 401, message: 'Authentication required' });
+        }
+
+        if (!fileId) {
+            return res.status(400).json({ status: 400, message: 'File ID is required' });
+        }
+
+        const file = await File.findById(fileId).select('_id owner file_size password');
+        if (!file) {
+            return res.status(404).json({ status: 404, message: 'File not found' });
+        }
+
+        if (file.owner.toString() !== userId.toString()) {
+            return res.status(403).json({ status: 403, message: 'Access denied' });
+        }
+
+        if (!password) {
+            // remove password protection
+            file.password = null;
+            await file.save();
+            return res.status(200).json({ status: 200, message: 'File password removed' });
+        }
+
+        if (typeof password !== 'string' || password.length < 1 || password.length > 32) {
+            return res.status(400).json({ status: 400, message: 'Password must be 1-32 characters' });
+        }
+
+        const salt = await Bcrypt.genSalt(10);
+        const hashedPassword = await Bcrypt.hash(String(password), salt);
+
+        file.password = hashedPassword;
+        await file.save();
+
+        return res.status(200).json({ status: 200, message: 'File password updated' });
+    } catch (err) {
+        console.error('Error changing file password:', err);
+        return res.status(500).json({ status: 500, message: 'Internal server error' });
+    }
+};
+
+export const updateFileMetadata = async (req, res) => {
+    try {
+        const { fileId } = req.params;
+        const userId = req.session.userId;
+        const { file_name, description, max_downloads, expires_at } = req.body || {};
+
+        if (!fileId) {
+            return res.status(400).json({ status: 400, message: 'File ID is required' });
+        }
+
+        const file = await File.findById(fileId).select('_id owner file_name description max_downloads expires_at file_size visibility shared_with_emails');
+        if (!file) {
+            return res.status(404).json({ status: 404, message: 'File not found' });
+        }
+
+        if (!userId || file.owner.toString() !== userId.toString()) {
+            return res.status(403).json({ status: 403, message: 'Access denied' });
+        }
+
+        if (file_name) {
+            if (typeof file_name !== 'string' || file_name.trim().length === 0 || file_name.length > 120) {
+                return res.status(400).json({ status: 400, message: 'Invalid file name' });
+            }
+            file.file_name = file_name.trim();
+        }
+
+        if (typeof description === 'string') {
+            file.description = description;
+        }
+
+        if (typeof max_downloads !== 'undefined') {
+            const parsed = Number(max_downloads);
+            file.max_downloads = Number.isFinite(parsed) && parsed > 0 ? parsed : null;
+        }
+
+        if (typeof expires_at !== 'undefined') {
+            const date = expires_at ? new Date(expires_at) : null;
+            file.expires_at = date && !isNaN(date.valueOf()) ? date : null;
+        }
+
+        await file.save();
+
+        return res.status(200).json({ status: 200, message: 'File updated', file: {
+            id: file._id,
+            file_name: file.file_name,
+            description: file.description,
+            max_downloads: file.max_downloads,
+            expires_at: file.expires_at,
+            visibility: file.visibility,
+            shared_with_emails: file.shared_with_emails || [],
+        }});
+    } catch (err) {
+        console.error('Error updating file metadata:', err);
         return res.status(500).json({ status: 500, message: 'Internal server error' });
     }
 };

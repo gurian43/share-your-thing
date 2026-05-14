@@ -380,6 +380,7 @@ const FilePage = () => {
                             timeRemaining={timeRemaining}
                             formatFileSize={formatBytes}
                             formatDate={formatDate}
+                            profileReturnTo={`${location.pathname}${location.search}`}
                         />
                         <FileDescriptionCard description={file.description} />
                     </Grid>

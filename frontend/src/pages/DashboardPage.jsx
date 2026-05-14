@@ -12,6 +12,7 @@ import FileList from '../components/dashboard/FileList'
 import UploadDialog from '../components/dashboard/UploadDialog'
 import ShareDialog from '../components/dashboard/ShareDialog'
 import DeleteDialog from '../components/dashboard/DeleteDialog'
+import EditFileDialog from '../components/dashboard/EditFileDialog'
 import { toaster } from '../components/ui/toaster'
 import { formatBytes, getFileType } from '../utils/fileUtils'
 
@@ -36,6 +37,8 @@ const DashboardPage = () => {
     const [shareDialogFile, setShareDialogFile] = useState(null)
     const [deleteDialogOpen, setDeleteDialogOpen] = useState(false)
     const [deleteDialogFile, setDeleteDialogFile] = useState(null)
+    const [editDialogOpen, setEditDialogOpen] = useState(false)
+    const [editDialogFile, setEditDialogFile] = useState(null)
     const minimumLoadingMs = 400
 
     const loadDashboard = async () => {
@@ -76,7 +79,7 @@ const DashboardPage = () => {
 
                 setFiles(formattedFiles)
                 setFilteredFiles(formattedFiles)
-                const isAdmin = userData.user.admin
+                const isAdmin = userData.user.role === 'admin'
                 setStats({
                     totalStorage: isAdmin ? 'Unlimited' : formatBytes(totalStorageBytes),
                     usedStorage: formatBytes(usedStorageBytes),
@@ -129,6 +132,11 @@ const DashboardPage = () => {
     const handleDelete = (file) => {
         setDeleteDialogFile(file)
         setDeleteDialogOpen(true)
+    }
+
+    const handleEdit = (file) => {
+        setEditDialogFile(file)
+        setEditDialogOpen(true)
     }
 
     const confirmDelete = async () => {
@@ -224,7 +232,9 @@ const DashboardPage = () => {
     const hasResults = filteredFiles.length > 0
     const emptyMessage = searchQuery
         ? 'No files match your search yet.'
-        : 'Upload your first file to get started. You have 5 GB of storage available.'
+        : stats.isAdmin
+            ? 'Upload your first file to get started. You have unlimited storage available.'
+            : 'Upload your first file to get started.'
 
     return (
         <Box minH="100vh" bg="gray.900" display="flex" flexDirection="column" overflowX="hidden">
@@ -252,6 +262,7 @@ const DashboardPage = () => {
                                 onShare={handleShare}
                                 onDelete={handleDelete}
                                 onDownload={handleDownload}
+                                onEdit={handleEdit}
                             />
                         ) : (
                             <FileList
@@ -260,6 +271,7 @@ const DashboardPage = () => {
                                 onShare={handleShare}
                                 onDelete={handleDelete}
                                 onDownload={handleDownload}
+                                onEdit={handleEdit}
                             />
                         )
                     ) : (
@@ -279,6 +291,28 @@ const DashboardPage = () => {
                 onClose={() => setShareDialogOpen(false)}
                 onSaved={handleShareSaved}
             />
+            {editDialogOpen && (
+                <EditFileDialog
+                    isOpen={editDialogOpen}
+                    file={editDialogFile}
+                    onClose={() => setEditDialogOpen(false)}
+                    onSaved={(updated) => {
+                        const updateFile = (f) => {
+                            if (f.id !== updated.id) return f
+                            return {
+                                ...f,
+                                name: updated.file_name || f.name,
+                                description: updated.description || f.description,
+                                max_downloads: updated.max_downloads || f.max_downloads,
+                                expires_at: updated.expires_at || f.expires_at,
+                            }
+                        }
+
+                        setFiles((prev) => prev.map(updateFile))
+                        setFilteredFiles((prev) => prev.map(updateFile))
+                    }}
+                />
+            )}
             <DeleteDialog
                 isOpen={deleteDialogOpen}
                 file={deleteDialogFile}

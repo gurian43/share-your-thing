@@ -1,8 +1,8 @@
 import { Box, Card, Flex, HStack, IconButton, Text, VStack, Badge } from '@chakra-ui/react'
-import { LuDownload, LuShare2, LuTrash2 } from 'react-icons/lu'
+import { LuDownload, LuShare2, LuTrash2, LuPencil } from 'react-icons/lu'
 import { formatBytes, getFileIcon, trimFileName } from '../../utils/fileUtils'
 
-const FileList = ({ files, onOpenFile, onShare, onDelete, onDownload }) => {
+const FileList = ({ files, onOpenFile, onShare, onDelete, onDownload, onEdit }) => {
     return (
         <Card.Root bg="gray.800" borderColor="gray.700">
             <Card.Body p={0}>
@@ -82,6 +82,18 @@ const FileList = ({ files, onOpenFile, onShare, onDelete, onDownload }) => {
                                 >
                                     <LuShare2 size={16} />
                                 </IconButton>
+                                    <IconButton
+                                        size="xs"
+                                        variant="ghost"
+                                        color="gray.400"
+                                        _hover={{ color: 'purple.300' }}
+                                        onClick={(e) => {
+                                            e.stopPropagation()
+                                            onEdit && onEdit(file)
+                                        }}
+                                    >
+                                        <LuPencil size={16} />
+                                    </IconButton>
                                 <IconButton
                                     size="xs"
                                     variant="ghost"

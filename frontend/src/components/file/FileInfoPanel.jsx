@@ -1,4 +1,5 @@
-import { Card, HStack, Heading, Separator, Text, VStack } from '@chakra-ui/react'
+import { useNavigate } from 'react-router-dom'
+import { Avatar, Card, HStack, Heading, Separator, Text, VStack } from '@chakra-ui/react'
 import { LuCalendar, LuDownload, LuHardDrive, LuUser, LuFile } from 'react-icons/lu'
 
 const InfoRow = ({ icon, label, value, valueColor = 'white' }) => (
@@ -11,7 +12,16 @@ const InfoRow = ({ icon, label, value, valueColor = 'white' }) => (
     </HStack>
 )
 
-const FileInfoPanel = ({ file, timeRemaining, formatFileSize, formatDate }) => {
+const FileInfoPanel = ({ file, timeRemaining, formatFileSize, formatDate, profileReturnTo = null }) => {
+    const navigate = useNavigate()
+
+    const goToOwnerProfile = () => {
+        const ownerId = file.owner?._id
+        if (ownerId) {
+            navigate(`/profile/${ownerId}`, { state: profileReturnTo ? { returnTo: profileReturnTo } : undefined })
+        }
+    }
+
     return (
         <Card.Root bg="gray.800" borderColor="gray.700">
             <Card.Body>
@@ -35,11 +45,29 @@ const FileInfoPanel = ({ file, timeRemaining, formatFileSize, formatDate }) => {
                         label="Uploaded"
                         value={formatDate(file.uploaded_at)}
                     />
-                    <InfoRow
-                        icon={<LuUser size={20} color="gray" />}
-                        label="Owner"
-                        value={file.owner?.username || 'Unknown'}
-                    />
+                    <HStack justify="space-between">
+                        <HStack>
+                            <LuUser size={20} color="gray" />
+                            <Text color="gray.400">Owner</Text>
+                        </HStack>
+                        <HStack spacing={2}>
+                            <Avatar.Root size="xs" colorPalette="purple">
+                                <Avatar.Fallback name={file.owner?.username || 'Unknown'} />
+                                {file.owner?.profile?.avatar_url && (
+                                    <Avatar.Image src={file.owner.profile.avatar_url} alt={file.owner?.username || 'Unknown'} />
+                                )}
+                            </Avatar.Root>
+                            <Text
+                                color="purple.200"
+                                fontWeight="bold"
+                                cursor={file.owner?._id ? 'pointer' : 'default'}
+                                _hover={file.owner?._id ? { color: 'purple.100', textDecoration: 'underline' } : undefined}
+                                onClick={goToOwnerProfile}
+                            >
+                                {file.owner?.username || 'Unknown'}
+                            </Text>
+                        </HStack>
+                    </HStack>
                     <InfoRow
                         icon={<LuDownload size={20} color="gray" />}
                         label="Downloads"

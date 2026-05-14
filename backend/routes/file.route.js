@@ -1,6 +1,6 @@
 import express from 'express';
 import multer from 'multer';
-import { getFileById, getUserFiles, getPublicFiles, deleteFile, uploadChunk, finalizeUpload, getUploadStatus, cancelUpload, downloadFile, voteFile, updateFileShareSettings } from '../controllers/file.controller.js';
+import { getFileById, getUserFiles, getPublicFiles, deleteFile, uploadChunk, finalizeUpload, getUploadStatus, cancelUpload, downloadFile, voteFile, updateFileShareSettings, changeFilePassword, updateFileMetadata } from '../controllers/file.controller.js';
 import { reportFile } from '../controllers/report.controller.js';
 import requireAuth from '../services/protectedRoute.js';
 import os from 'os';
@@ -30,6 +30,8 @@ router.get('/public', getPublicFiles);
 router.post('/:fileId/report', requireAuth, reportFile);
 router.post('/:fileId/vote', requireAuth, voteFile);
 router.put('/:fileId/share', requireAuth, updateFileShareSettings);
+router.post('/:fileId/password', requireAuth, changeFilePassword);
+router.put('/:fileId', requireAuth, updateFileMetadata);
 router.post('/:fileId/download', downloadFile);
 router.get('/:fileId', getFileById);
 router.delete('/:fileId', requireAuth, deleteFile);

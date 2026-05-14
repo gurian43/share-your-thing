@@ -13,6 +13,7 @@ import { limiter } from './services/rateLimiter.js';
 
 import userRoutes from './routes/user.route.js';
 import fileRoutes from './routes/file.route.js';
+import adminRoutes from './routes/admin.route.js';
 
 dotenv.config();
 
@@ -77,6 +78,7 @@ app.use(limiter);
 
 app.use('/api/user', userRoutes);
 app.use('/api/file', fileRoutes);
+app.use('/api/admin', adminRoutes);
 
 app.listen(PORT, () => {
     connectToDatabase();

@@ -1,7 +1,7 @@
 import { Box, Card, Heading, Text, VStack } from '@chakra-ui/react'
 import { LuFolder } from 'react-icons/lu'
 
-const FileEmptyState = ({ message = 'Upload your first file to get started. You have 5 GB of storage available.' }) => {
+const FileEmptyState = ({ message = 'Upload your first file to get started.' }) => {
     return (
         <Card.Root bg="gray.800" borderColor="gray.700">
             <Card.Body>
