@@ -10,9 +10,11 @@ RUN npm run build
 FROM node:18-alpine
 WORKDIR /app
 
-# Install backend deps
-COPY backend/package*.json ./
-RUN npm ci --production --silent
+# Install backend deps from the repo root package files
+COPY package*.json ./
+RUN apk add --no-cache --virtual .gyp python3 make g++ \
+    && npm ci --production --silent \
+    && apk del .gyp
 
 # Copy backend source
 COPY backend/ ./
