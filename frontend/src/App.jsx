@@ -23,6 +23,7 @@ function App() {
 
     return (
         <>
+            <Toaster />
             <Routes>
                 <Route path="/" element={<HomePage />} />
                 <Route path="/login" element={<LoginPage />} />
@@ -59,7 +60,6 @@ function App() {
                 <Route path="/faq" element={<FaqPage />} />
                 <Route path="/privacy" element={<PrivacyPage />} />
             </Routes>
-            <Toaster />
         </>
     )
 }

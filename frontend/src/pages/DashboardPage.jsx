@@ -10,7 +10,6 @@ import FileEmptyState from '../components/dashboard/FileEmptyState'
 import FileGrid from '../components/dashboard/FileGrid'
 import FileList from '../components/dashboard/FileList'
 import UploadDialog from '../components/dashboard/UploadDialog'
-import ShareDialog from '../components/dashboard/ShareDialog'
 import DeleteDialog from '../components/dashboard/DeleteDialog'
 import EditFileDialog from '../components/dashboard/EditFileDialog'
 import { toaster } from '../components/ui/toaster'
@@ -33,8 +32,6 @@ const DashboardPage = () => {
     })
     const [loading, setLoading] = useState(true)
     const [uploadDialogOpen, setUploadDialogOpen] = useState(false)
-    const [shareDialogOpen, setShareDialogOpen] = useState(false)
-    const [shareDialogFile, setShareDialogFile] = useState(null)
     const [deleteDialogOpen, setDeleteDialogOpen] = useState(false)
     const [deleteDialogFile, setDeleteDialogFile] = useState(null)
     const [editDialogOpen, setEditDialogOpen] = useState(false)
@@ -185,42 +182,22 @@ const DashboardPage = () => {
         })
     }
 
-    const handleShare = (file) => {
-        setShareDialogFile(file)
-        setShareDialogOpen(true)
-    }
-
-    const handleShareSaved = (updatedShare) => {
-        const isShared =
-            updatedShare.shared_with_count > 0 ||
-            updatedShare.visibility === 'public' ||
-            updatedShare.visibility === 'unlisted'
-
-        const updateFile = (file) => {
-            if (file.id !== updatedShare.id) return file
-            return {
-                ...file,
-                visibility: updatedShare.visibility,
-                shared_with_count: updatedShare.shared_with_count,
-                shared_with_emails: updatedShare.shared_with_emails,
-                shared: isShared,
-            }
+    const handleShare = async (file) => {
+        const shareLink = `${window.location.origin}/file/${file.id}`
+        try {
+            await navigator.clipboard.writeText(shareLink)
+            toaster.create({
+                title: 'Share link copied to clipboard!',
+                type: 'success',
+                duration: 3000,
+            })
+        } catch {
+            toaster.create({
+                title: 'Could not copy share link.',
+                type: 'error',
+                duration: 3000,
+            })
         }
-
-        setFiles((prev) => prev.map(updateFile))
-        setFilteredFiles((prev) => prev.map(updateFile))
-        setShareDialogFile((prev) => (prev ? updateFile(prev) : prev))
-        setStats((prevStats) => {
-            const nextFiles = files.map(updateFile)
-            const sharedCount = nextFiles.filter(
-                (f) => f.shared_with_count > 0 || f.visibility === 'public' || f.visibility === 'unlisted'
-            ).length
-
-            return {
-                ...prevStats,
-                sharedCount,
-            }
-        })
     }
 
     const handleOpenFile = (file) => navigate(`/file/${file.id}?from=dashboard`, { state: { from: 'dashboard' } })
@@ -285,18 +262,17 @@ const DashboardPage = () => {
                 onClose={() => setUploadDialogOpen(false)}
                 onUploaded={() => loadDashboard()}
             />
-            <ShareDialog
-                isOpen={shareDialogOpen}
-                file={shareDialogFile}
-                onClose={() => setShareDialogOpen(false)}
-                onSaved={handleShareSaved}
-            />
             {editDialogOpen && (
                 <EditFileDialog
                     isOpen={editDialogOpen}
                     file={editDialogFile}
                     onClose={() => setEditDialogOpen(false)}
                     onSaved={(updated) => {
+                        const isShared =
+                            (updated.shared_with_count ?? (Array.isArray(updated.shared_with_emails) ? updated.shared_with_emails.length : 0)) > 0 ||
+                            updated.visibility === 'public' ||
+                            updated.visibility === 'unlisted'
+
                         const updateFile = (f) => {
                             if (f.id !== updated.id) return f
                             return {
@@ -305,11 +281,26 @@ const DashboardPage = () => {
                                 description: updated.description || f.description,
                                 max_downloads: updated.max_downloads || f.max_downloads,
                                 expires_at: updated.expires_at || f.expires_at,
+                                visibility: updated.visibility || f.visibility,
+                                shared_with_count: updated.shared_with_count ?? f.shared_with_count,
+                                shared_with_emails: updated.shared_with_emails || f.shared_with_emails,
+                                shared: isShared,
                             }
                         }
 
                         setFiles((prev) => prev.map(updateFile))
                         setFilteredFiles((prev) => prev.map(updateFile))
+                        setStats((prevStats) => {
+                            const nextFiles = files.map(updateFile)
+                            const sharedCount = nextFiles.filter(
+                                (f) => f.shared_with_count > 0 || f.visibility === 'public' || f.visibility === 'unlisted'
+                            ).length
+
+                            return {
+                                ...prevStats,
+                                sharedCount,
+                            }
+                        })
                     }}
                 />
             )}

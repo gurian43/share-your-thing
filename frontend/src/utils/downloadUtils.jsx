@@ -88,6 +88,7 @@ export const createDownloadTask = ({
     onProgress,
 }) => {
     const abortController = new AbortController()
+    const WRITE_CONCURRENCY = 4
     let paused = false
     let pauseResolver = null
     let started = false
@@ -117,6 +118,18 @@ export const createDownloadTask = ({
         abortController.abort()
     }
 
+    const trackWrite = async (inFlightWrites, writePromise) => {
+        inFlightWrites.add(writePromise)
+        try {
+            if (inFlightWrites.size >= WRITE_CONCURRENCY) {
+                await Promise.race(inFlightWrites)
+            }
+            await writePromise
+        } finally {
+            inFlightWrites.delete(writePromise)
+        }
+    }
+
     const start = async () => {
         if (started) return
         started = true
@@ -128,6 +141,7 @@ export const createDownloadTask = ({
         let reader = null
         let chunkIndex = 0
         let downloadedBytes = 0
+        const inFlightWrites = new Set()
 
         try {
             try {
@@ -187,7 +201,7 @@ export const createDownloadTask = ({
                 const blob = new Blob([value])
 
                 if (db) {
-                    await storeChunk(db, fileId, chunkIndex, blob)
+                    await trackWrite(inFlightWrites, storeChunk(db, fileId, chunkIndex, blob))
                 } else {
                     memoryChunks.push({ index: chunkIndex, blob })
                 }
@@ -222,6 +236,8 @@ export const createDownloadTask = ({
             if (checksum && checksum !== digest) {
                 throw new Error('Checksum mismatch. Download corrupted.')
             }
+
+            await Promise.all(inFlightWrites)
 
             // merge and download
             const chunks = db ? await getChunksForFile(db, fileId) : memoryChunks

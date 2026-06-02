@@ -34,7 +34,12 @@ export const Toaster = () => {
               )}
             </Stack>
             {toast.action && (
-              <Toast.ActionTrigger>{toast.action.label}</Toast.ActionTrigger>
+              <Toast.ActionTrigger
+                onPointerDownCapture={(event) => event.stopPropagation()}
+                onMouseDownCapture={(event) => event.stopPropagation()}
+              >
+                {toast.action.label}
+              </Toast.ActionTrigger>
             )}
             {toast.closable && <Toast.CloseTrigger />}
           </Toast.Root>

@@ -47,6 +47,28 @@ const validateUploadFileName = (rawName) => {
     return { valid: true, value: name };
 };
 
+const getStorageLimitBytes = (user) => {
+    if (!user) return 0;
+    if (user.admin || user.role === 'admin') return Infinity;
+    return Number(user.max_storage) || 0;
+};
+
+const getRemainingStorageBytes = (user) => {
+    const storageLimitBytes = getStorageLimitBytes(user);
+    if (storageLimitBytes === Infinity) return Infinity;
+    return Math.max(storageLimitBytes - (Number(user?.current_storage) || 0), 0);
+};
+
+const removeUploadArtifacts = async (tempDir, chunkPath) => {
+    if (chunkPath) {
+        await fs.promises.unlink(chunkPath).catch(() => {});
+    }
+
+    if (tempDir && fs.existsSync(tempDir)) {
+        await fs.promises.rm(tempDir, { recursive: true, force: true }).catch(() => {});
+    }
+};
+
 export const getFileById = async (req, res) => {
     try {
         const { fileId } = req.params;
@@ -416,15 +438,42 @@ export const uploadChunk = async (req, res) => {
             return res.status(400).json({ status: 400, message: 'No chunk uploaded' });
         }
 
-        const { uploadId, chunkIndex, totalChunks, fileName } = req.body;
+        const { uploadId, chunkIndex, totalChunks, fileName, fileSize } = req.body;
         const userId = req.session.userId;
+        const user = await User.findById(userId).select('_id current_storage max_storage role admin');
+
+        if (!user) {
+            await fs.promises.unlink(req.file.path).catch(() => {});
+            return res.status(404).json({ status: 404, message: 'User not found' });
+        }
 
         if (!uploadId || chunkIndex === undefined || !totalChunks || !fileName) {
+            await fs.promises.unlink(req.file.path).catch(() => {});
             return res.status(400).json({ status: 400, message: 'Missing required fields' });
+        }
+
+        const parsedFileSize = Number(fileSize);
+        if (!Number.isFinite(parsedFileSize) || parsedFileSize <= 0) {
+            await fs.promises.unlink(req.file.path).catch(() => {});
+            return res.status(400).json({ status: 400, message: 'Invalid file size' });
+        }
+
+        const remainingStorageBytes = getRemainingStorageBytes(user);
+        if (remainingStorageBytes !== Infinity && parsedFileSize > remainingStorageBytes) {
+            const uploadsRoot = path.resolve(process.cwd(), 'uploads');
+            const userKey = String(userId);
+            const tempDir = path.join(uploadsRoot, userKey, '.temp', String(uploadId));
+            await removeUploadArtifacts(tempDir, req.file.path);
+
+            return res.status(413).json({
+                status: 413,
+                message: 'File is too large for your storage limit',
+            });
         }
 
         const fileNameValidation = validateUploadFileName(fileName);
         if (!fileNameValidation.valid) {
+            await fs.promises.unlink(req.file.path).catch(() => {});
             return res.status(400).json({ status: 400, message: fileNameValidation.message });
         }
 
@@ -439,6 +488,7 @@ export const uploadChunk = async (req, res) => {
             }
         } catch (err) {
             console.error('Error creating temp directory:', err);
+            await fs.promises.unlink(req.file.path).catch(() => {});
             return res.status(500).json({ status: 500, message: 'Failed to create temp directory' });
         }
 
@@ -448,6 +498,7 @@ export const uploadChunk = async (req, res) => {
             await fs.promises.rename(req.file.path, chunkPath);
         } catch (err) {
             console.error('Error saving chunk:', err);
+            await removeUploadArtifacts(tempDir, req.file.path);
             return res.status(500).json({ status: 500, message: 'Failed to save chunk' });
         }
 
@@ -484,9 +535,27 @@ export const finalizeUpload = async (req, res) => {
         }
 
         const userId = req.session.userId;
+        const user = await User.findById(userId).select('_id current_storage max_storage role admin');
+
+        if (!user) {
+            return res.status(404).json({ status: 404, message: 'User not found' });
+        }
 
         if (!uploadId || !fileName || !totalChunks || !checksum) {
             return res.status(400).json({ status: 400, message: 'Missing required fields' });
+        }
+
+        const parsedFileSize = Number(fileSize);
+        if (!Number.isFinite(parsedFileSize) || parsedFileSize <= 0) {
+            return res.status(400).json({ status: 400, message: 'Invalid file size' });
+        }
+
+        const remainingStorageBytes = getRemainingStorageBytes(user);
+        if (remainingStorageBytes !== Infinity && parsedFileSize > remainingStorageBytes) {
+            return res.status(413).json({
+                status: 413,
+                message: 'File is too large for your storage limit',
+            });
         }
 
         const fileNameValidation = validateUploadFileName(fileName);
@@ -772,6 +841,10 @@ export const getPublicFiles = async (req, res) => {
 
         const skip = (page - 1) * limit;
 
+        const sortStage = sortField === 'uploaded_at'
+            ? { uploaded_at: sortOrder, _id: sortOrder }
+            : { [sortField]: sortOrder, uploaded_at: -1, _id: -1 };
+
         const results = await File.aggregate([
             { $match: match },
             {
@@ -796,7 +869,7 @@ export const getPublicFiles = async (req, res) => {
                     owner_data: { $arrayElemAt: ['$owner_data', 0] },
                 },
             },
-            { $sort: { [sortField]: sortOrder, uploaded_at: -1, _id: -1 } },
+            { $sort: sortStage },
             {
                 $facet: {
                     data: [
@@ -905,13 +978,20 @@ export const updateFileMetadata = async (req, res) => {
     try {
         const { fileId } = req.params;
         const userId = req.session.userId;
-        const { file_name, description, max_downloads, expires_at } = req.body || {};
+        const {
+            file_name,
+            description,
+            max_downloads,
+            expires_at,
+            visibility,
+            sharedWithEmails,
+        } = req.body || {};
 
         if (!fileId) {
             return res.status(400).json({ status: 400, message: 'File ID is required' });
         }
 
-        const file = await File.findById(fileId).select('_id owner file_name description max_downloads expires_at file_size visibility shared_with_emails');
+        const file = await File.findById(fileId).select('_id owner file_name description max_downloads expires_at file_size visibility shared_with shared_with_emails');
         if (!file) {
             return res.status(404).json({ status: 404, message: 'File not found' });
         }
@@ -941,6 +1021,61 @@ export const updateFileMetadata = async (req, res) => {
             file.expires_at = date && !isNaN(date.valueOf()) ? date : null;
         }
 
+        const allowedVisibility = ['private', 'unlisted', 'public'];
+        if (typeof visibility !== 'undefined' && !allowedVisibility.includes(visibility)) {
+            return res.status(400).json({ status: 400, message: 'Invalid visibility value' });
+        }
+
+        if (typeof sharedWithEmails !== 'undefined' && !Array.isArray(sharedWithEmails)) {
+            return res.status(400).json({ status: 400, message: 'sharedWithEmails must be an array' });
+        }
+
+        const nextVisibility = typeof visibility !== 'undefined' ? visibility : file.visibility;
+        const nextSharedEmails = nextVisibility === 'private'
+            ? (Array.isArray(sharedWithEmails) ? sharedWithEmails : (file.shared_with_emails || []))
+            : [];
+
+        if (nextVisibility === 'private') {
+            const normalizedEmails = [...new Set(
+                nextSharedEmails
+                    .map(normalizeEmail)
+                    .filter(Boolean)
+            )];
+
+            const invalidEmail = normalizedEmails.find((email) => !/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(email));
+            if (invalidEmail) {
+                return res.status(400).json({ status: 400, message: `Invalid email: ${invalidEmail}` });
+            }
+
+            let sharedWithUserIds = [];
+            if (normalizedEmails.length > 0) {
+                const users = await User.find({ email: { $in: normalizedEmails }, active: true })
+                    .select('_id email')
+                    .lean();
+
+                const foundEmails = new Set(users.map((user) => normalizeEmail(user.email)));
+                const missingEmails = normalizedEmails.filter((email) => !foundEmails.has(email));
+                if (missingEmails.length > 0) {
+                    return res.status(400).json({
+                        status: 400,
+                        message: `Users not found or inactive: ${missingEmails.join(', ')}`,
+                    });
+                }
+
+                sharedWithUserIds = users
+                    .map((user) => user._id)
+                    .filter((id) => id.toString() !== userId.toString());
+            }
+
+            file.visibility = nextVisibility;
+            file.shared_with = sharedWithUserIds;
+            file.shared_with_emails = normalizedEmails;
+        } else if (typeof visibility !== 'undefined') {
+            file.visibility = nextVisibility;
+            file.shared_with = [];
+            file.shared_with_emails = [];
+        }
+
         await file.save();
 
         return res.status(200).json({ status: 200, message: 'File updated', file: {
@@ -950,6 +1085,7 @@ export const updateFileMetadata = async (req, res) => {
             max_downloads: file.max_downloads,
             expires_at: file.expires_at,
             visibility: file.visibility,
+            shared_with_count: Array.isArray(file.shared_with_emails) ? file.shared_with_emails.length : 0,
             shared_with_emails: file.shared_with_emails || [],
         }});
     } catch (err) {

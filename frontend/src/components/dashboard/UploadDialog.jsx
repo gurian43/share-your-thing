@@ -22,6 +22,7 @@ import { toaster } from '../ui/toaster'
 import { formatBytes } from '../../utils/fileUtils'
 import { LuFile, LuUpload } from 'react-icons/lu'
 import { createSHA256 } from 'hash-wasm'
+import { useAuth } from '../../context/AuthContext'
 
 const CHUNK_SIZE = 2 * 1024 * 1024 // 2MB
 const UPLOAD_CONCURRENCY = 4
@@ -39,6 +40,7 @@ const validateCustomFileName = (value) => {
 }
 
 const UploadDialog = ({ isOpen, onClose, onUploaded }) => {
+    const { user } = useAuth()
     const [step, setStep] = useState(1)
     const [file, setFile] = useState(null)
     const [customFileName, setCustomFileName] = useState('')
@@ -54,6 +56,8 @@ const UploadDialog = ({ isOpen, onClose, onUploaded }) => {
     const [uploadedChunks, setUploadedChunks] = useState(0)
     const [totalChunks, setTotalChunks] = useState(0)
     const [uploadStage, setUploadStage] = useState('idle') // idle, uploading, merging, encrypting
+    const [uploadSpeed, setUploadSpeed] = useState(0)
+    const [warnLabel, setWarnLabel] = useState('')
     const cancelRequestedRef = useRef(false)
     const abortersRef = useRef(new Set())
 
@@ -90,7 +94,7 @@ const UploadDialog = ({ isOpen, onClose, onUploaded }) => {
         setUploadedChunks(0)
         setTotalChunks(0)
         setUploadStage('idle')
-        cancelRequestedRef.current = false
+        setUploadSpeed(0)
         abortersRef.current.forEach((controller) => controller.abort())
         abortersRef.current.clear()
     }
@@ -103,14 +107,9 @@ const UploadDialog = ({ isOpen, onClose, onUploaded }) => {
     const handleDialogOpenChange = (e) => {
         if (e.open) return
 
-        if (submitting) {
-            toaster.create({
-                title: 'Upload in progress',
-                description: 'Cancel the upload first if you want to close this dialog.',
-                type: 'info',
-                duration: 3000,
-            })
-            return
+        if (submitting && !cancelRequestedRef.current) {
+            setWarnLabel('Please cancel the ongoing upload before closing the dialog.');
+            return;
         }
 
         closeAndReset()
@@ -138,6 +137,7 @@ const UploadDialog = ({ isOpen, onClose, onUploaded }) => {
         if (!file) return
 
         const desiredFileName = String(customFileName || '').trim()
+        const uploadKey = `upload_${file.name}_${file.size}_${desiredFileName}`
         const fileNameError = validateCustomFileName(desiredFileName)
         if (fileNameError) {
             toaster.create({
@@ -146,6 +146,20 @@ const UploadDialog = ({ isOpen, onClose, onUploaded }) => {
                 duration: 3000,
             })
             return
+        }
+
+        if (user && user.role !== 'admin' && !user.admin) {
+            const availableStorageBytes = Math.max((Number(user.max_storage) || 0) - (Number(user.current_storage) || 0), 0)
+
+            if (availableStorageBytes > 0 && file.size > availableStorageBytes) {
+                toaster.create({
+                    title: 'File is too large to upload',
+                    description: `Available: ${formatBytes(availableStorageBytes)}`,
+                    type: 'error',
+                    duration: 4000,
+                })
+                return
+            }
         }
 
         if (password && password.length > 32) {
@@ -206,14 +220,36 @@ const UploadDialog = ({ isOpen, onClose, onUploaded }) => {
             setTotalChunks(chunks)
             setUploadedChunks(0)
             setUploadProgress(0)
+            setUploadSpeed(0)
             setUploadStage('uploading')
 
             // check existing upload in local
-            const uploadKey = `upload_${file.name}_${file.size}_${desiredFileName}`
             const existingUpload = localStorage.getItem(uploadKey)
             let uploadId
             let startChunk = 0
             let uploadedChunks = []
+            let completedBytesCount = 0
+            let lastSpeedSampleAt = Date.now()
+            let lastSpeedSampleBytes = 0
+
+            const getChunkBytes = (chunkIndex) => {
+                const start = chunkIndex * CHUNK_SIZE
+                const end = Math.min(start + CHUNK_SIZE, file.size)
+                return end - start
+            }
+
+            const updateUploadSpeed = () => {
+                const now = Date.now()
+                const elapsedMs = now - lastSpeedSampleAt
+                if (elapsedMs < 400) return
+
+                const bytesDelta = completedBytesCount - lastSpeedSampleBytes
+                const bytesPerSecond = elapsedMs > 0 ? (bytesDelta / elapsedMs) * 1000 : 0
+
+                lastSpeedSampleAt = now
+                lastSpeedSampleBytes = completedBytesCount
+                setUploadSpeed(bytesPerSecond)
+            }
 
             const cancelUploadOnServer = async () => {
                 if (!uploadId) return
@@ -234,6 +270,7 @@ const UploadDialog = ({ isOpen, onClose, onUploaded }) => {
                 if (cancelRequestedRef.current) return
 
                 cancelRequestedRef.current = true
+                setSubmitting(false)
                 abortersRef.current.forEach((controller) => controller.abort())
                 localStorage.removeItem(uploadKey)
                 void cancelUploadOnServer()
@@ -263,10 +300,14 @@ const UploadDialog = ({ isOpen, onClose, onUploaded }) => {
                         const statusData = await statusRes.json()
                         uploadedChunks = statusData.uploadedChunks || []
                         startChunk = uploadedChunks.length
+                        completedBytesCount = uploadedChunks.reduce((sum, chunkIndex) => sum + getChunkBytes(chunkIndex), 0)
+                        lastSpeedSampleBytes = completedBytesCount
+                        lastSpeedSampleAt = Date.now()
                         
                         if (startChunk > 0) {
                             setUploadProgress((startChunk / chunks) * 100)
                             setUploadedChunks(startChunk)
+                            setUploadSpeed(0)
                             toaster.update(toastId, {
                                 title: 'Resuming Upload',
                                 description: `Continuing from ${Math.round((startChunk/chunks)*100)}% (${startChunk}/${chunks} chunks done)`,
@@ -302,11 +343,13 @@ const UploadDialog = ({ isOpen, onClose, onUploaded }) => {
             let completedChunkCount = uploadedChunkSet.size
             setUploadedChunks(completedChunkCount)
             setUploadProgress((completedChunkCount / chunks) * 100)
+            updateUploadSpeed()
 
             const updateProgress = () => {
                 const pct = (completedChunkCount / chunks) * 100
                 setUploadedChunks(completedChunkCount)
                 setUploadProgress(pct)
+                updateUploadSpeed()
 
                 toaster.update(toastId, {
                     title: 'Uploading...',
@@ -355,6 +398,7 @@ const UploadDialog = ({ isOpen, onClose, onUploaded }) => {
                 chunkFormData.append('totalChunks', chunks)
                 chunkFormData.append('uploadId', uploadId)
                 chunkFormData.append('fileName', desiredFileName)
+                chunkFormData.append('fileSize', file.size)
 
                 const controller = new AbortController()
                 abortersRef.current.add(controller)
@@ -372,6 +416,7 @@ const UploadDialog = ({ isOpen, onClose, onUploaded }) => {
                     }
 
                     completedChunkCount += 1
+                    completedBytesCount += chunk.size
                     updateProgress()
                 } finally {
                     abortersRef.current.delete(controller)
@@ -471,7 +516,7 @@ const UploadDialog = ({ isOpen, onClose, onUploaded }) => {
                 err?.message === 'UPLOAD_CANCELLED'
 
             if (wasCancelled) {
-                localStorage.removeItem(`upload_${file.name}_${file.size}_${String(customFileName || '').trim()}`)
+                localStorage.removeItem(uploadKey)
                 toaster.update(toastId, {
                     title: 'Upload cancelled',
                     description: 'Uploaded chunks were cleared',
@@ -479,11 +524,13 @@ const UploadDialog = ({ isOpen, onClose, onUploaded }) => {
                     duration: 4000,
                 })
                 setUploadStage('idle')
+                setUploadSpeed(0)
                 return
             }
 
             console.error('Upload error:', err)
             setUploadStage('idle')
+            setUploadSpeed(0)
             toaster.update(toastId, {
                 title: 'Upload failed',
                 description: err?.message || 'An error occurred during upload',
@@ -534,10 +581,16 @@ const UploadDialog = ({ isOpen, onClose, onUploaded }) => {
                                 alignItems={"stretch"}
                                 maxFiles={1}
                                 accept={{ '*/*': [] }}
-                                onFileChange={({ acceptedFiles }) => {
+                                onFileChange={async ({ acceptedFiles }) => {
                                     const f = acceptedFiles?.[0]
-                                    setFile(f || null)
-                                    setCustomFileName(f?.name || '')
+                                    if (!f) {
+                                        setFile(null)
+                                        setCustomFileName('')
+                                        return
+                                    }
+
+                                    setFile(f)
+                                    setCustomFileName(f.name)
                                 }}
                             >
                                 <FileUpload.HiddenInput />
@@ -725,6 +778,11 @@ const UploadDialog = ({ isOpen, onClose, onUploaded }) => {
                                                 </Text>
                                                 {uploadStage === 'uploading' && (
                                                     <Text fontSize="xs" color="gray.400">
+                                                        {uploadSpeed > 0 ? `${formatBytes(uploadSpeed)}/s` : '0B/s'}
+                                                    </Text>
+                                                )}
+                                                {uploadStage === 'uploading' && (
+                                                    <Text fontSize="xs" color="gray.400">
                                                         {uploadedChunks}/{totalChunks} chunks
                                                     </Text>
                                                 )}
@@ -740,6 +798,11 @@ const UploadDialog = ({ isOpen, onClose, onUploaded }) => {
                                                     <Progress.Range />
                                                 </Progress.Track>
                                             </Progress.Root>
+                                            {warnLabel && (
+                                                <Text fontSize="sm" color="yellow.500" mt={2}>
+                                                    {warnLabel}
+                                                </Text>
+                                            )}
                                         </Box>
                                     )}
                                 </Box>

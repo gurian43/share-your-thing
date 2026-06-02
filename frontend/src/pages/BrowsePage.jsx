@@ -1,7 +1,7 @@
 import { useEffect, useMemo, useState } from 'react'
 import { useNavigate } from 'react-router-dom'
 import { Badge, Box, Button, Card, Container, Flex, Grid, Heading, HStack, Input, Separator, Skeleton, Text, VStack } from '@chakra-ui/react'
-import { LuArrowLeft, LuArrowRight, LuLock, LuLockOpen, LuSearch, LuTrendingUp } from 'react-icons/lu'
+import { LuArrowLeft, LuArrowRight, LuLock, LuLockOpen, LuRefreshCw, LuSearch, LuTrendingUp } from 'react-icons/lu'
 import Header from '../components/Header'
 import Footer from '../components/Footer'
 import { toaster } from '../components/ui/toaster'
@@ -102,6 +102,10 @@ const BrowsePage = () => {
         return `${pagination.total} public files found`
     }, [pagination.total])
 
+    const handleRefresh = () => {
+        loadPublicFiles()
+    }
+
     const formatDate = (dateString) => {
         if (!dateString) return '-'
         return new Date(dateString).toLocaleDateString('en-US', {
@@ -177,8 +181,8 @@ const BrowsePage = () => {
                                         px={3}
                                         h="40px"
                                     >
-                                        <option value="desc">Descending</option>
-                                        <option value="asc">Ascending</option>
+                                        <option value="desc">{sortBy === 'date' ? 'Newest first' : 'Descending'}</option>
+                                        <option value="asc">{sortBy === 'date' ? 'Oldest first' : 'Ascending'}</option>
                                     </Box>
 
                                     <Box
@@ -196,7 +200,7 @@ const BrowsePage = () => {
                                         px={3}
                                         h="40px"
                                     >
-                                        <option value="all">Password: All files</option>
+                                        <option value="all">All files</option>
                                         <option value="protected">Password: Protected</option>
                                         <option value="unprotected">Password: Not protected</option>
                                     </Box>
@@ -220,6 +224,17 @@ const BrowsePage = () => {
                                         <option value={24}>24 / page</option>
                                         <option value={36}>36 / page</option>
                                     </Box>
+
+                                    <Button
+                                        variant="outline"
+                                        borderColor="gray.600"
+                                        color="gray.200"
+                                        _hover={{ bg: 'gray.700', color: 'white' }}
+                                        onClick={handleRefresh}
+                                        disabled={loading}
+                                    >
+                                        <LuRefreshCw />
+                                    </Button>
                                 </HStack>
                             </Flex>
                         </Card.Body>

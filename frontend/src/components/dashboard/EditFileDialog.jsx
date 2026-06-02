@@ -1,6 +1,14 @@
 import { useEffect, useState } from 'react'
-import { Button, HStack, Input, Textarea, VStack, Dialog, Text, Box } from '@chakra-ui/react'
+import { Button, HStack, Input, Textarea, VStack, Dialog, Text, Box, RadioGroup, TagsInput } from '@chakra-ui/react'
 import { toaster } from '../ui/toaster'
+
+const visibilityOptions = [
+    { label: 'Public', value: 'public' },
+    { label: 'Unlisted', value: 'unlisted' },
+    { label: 'Private', value: 'private' },
+]
+
+const emailPattern = /^[^\s@]+@[^\s@]+\.[^\s@]+$/
 
 const EditFileDialog = ({ isOpen, file, onClose, onSaved }) => {
     
@@ -8,6 +16,9 @@ const EditFileDialog = ({ isOpen, file, onClose, onSaved }) => {
     const [description, setDescription] = useState('')
     const [maxDownloads, setMaxDownloads] = useState('')
     const [expiresAt, setExpiresAt] = useState('')
+    const [visibility, setVisibility] = useState('unlisted')
+    const [sharedEmails, setSharedEmails] = useState([])
+    const [shareEmailInput, setShareEmailInput] = useState('')
     const [hasPassword, setHasPassword] = useState(false)
     const [newPassword, setNewPassword] = useState('')
     const [confirmPassword, setConfirmPassword] = useState('')
@@ -23,6 +34,9 @@ const EditFileDialog = ({ isOpen, file, onClose, onSaved }) => {
         setDescription(file.description || '')
         setMaxDownloads(file.max_downloads ? String(file.max_downloads) : '')
         setExpiresAt(file.expires_at ? new Date(file.expires_at).toISOString().split('T')[0] : '')
+        setVisibility(file.visibility || 'unlisted')
+        setSharedEmails(Array.isArray(file.shared_with_emails) ? file.shared_with_emails : [])
+        setShareEmailInput('')
         setHasPassword(Boolean(file.password))
         setNewPassword('')
         setConfirmPassword('')
@@ -40,6 +54,8 @@ const EditFileDialog = ({ isOpen, file, onClose, onSaved }) => {
                 setDescription(f.description || '')
                 setMaxDownloads(f.max_downloads ? String(f.max_downloads) : '')
                 setExpiresAt(f.expires_at ? new Date(f.expires_at).toISOString().split('T')[0] : '')
+                setVisibility(f.visibility || file.visibility || 'unlisted')
+                setSharedEmails(Array.isArray(f.shared_with_emails) ? f.shared_with_emails : (Array.isArray(file.shared_with_emails) ? file.shared_with_emails : []))
                 setHasPassword(Boolean(f.password))
             } catch (err) {
                 console.error(err)
@@ -53,14 +69,38 @@ const EditFileDialog = ({ isOpen, file, onClose, onSaved }) => {
         return () => { mounted = false }
     }, [isOpen, file, onClose])
 
+    const commitShareEmailInput = () => {
+        const nextEmail = String(shareEmailInput || '').trim()
+        if (!nextEmail) return
+
+        setSharedEmails((prev) => {
+            const exists = prev.some((email) => String(email).toLowerCase() === nextEmail.toLowerCase())
+            return exists ? prev : [...prev, nextEmail]
+        })
+        setShareEmailInput('')
+    }
+
     const handleSave = async () => {
         setSubmitting(true)
         try {
+            const normalizedEmails = [...new Set(
+                sharedEmails
+                    .map((email) => String(email || '').trim().toLowerCase())
+                    .filter(Boolean)
+            )]
+
+            const invalidEmail = normalizedEmails.find((email) => !emailPattern.test(email))
+            if (visibility === 'private' && invalidEmail) {
+                throw new Error(`Invalid email: ${invalidEmail}`)
+            }
+
             const body = {
                 file_name: name,
                 description,
                 max_downloads: maxDownloads ? Number(maxDownloads) : null,
                 expires_at: expiresAt || null,
+                visibility,
+                sharedWithEmails: visibility === 'private' ? normalizedEmails : [],
             }
 
             const res = await fetch(`/api/file/${file.id}`, {
@@ -132,6 +172,51 @@ const EditFileDialog = ({ isOpen, file, onClose, onSaved }) => {
                             <Text color="gray.200" fontWeight="semibold">Description</Text>
                             <Textarea value={description} onChange={(e) => setDescription(e.target.value)} placeholder="Optional: add context or usage notes" bg="gray.700" borderColor="gray.600" color="white" />
                         </Box>
+
+                        <Box>
+                            <Text color="gray.200" fontWeight="semibold" mb={2}>Visibility</Text>
+                            <RadioGroup.Root value={visibility} onValueChange={(details) => setVisibility(details.value)} colorPalette="purple">
+                                <HStack gap={4} wrap="wrap">
+                                    {visibilityOptions.map((option) => (
+                                        <RadioGroup.Item key={option.value} value={option.value}>
+                                            <RadioGroup.ItemHiddenInput />
+                                            <RadioGroup.ItemIndicator />
+                                            <RadioGroup.ItemText color="white">{option.label}</RadioGroup.ItemText>
+                                        </RadioGroup.Item>
+                                    ))}
+                                </HStack>
+                            </RadioGroup.Root>
+                        </Box>
+
+                        {visibility === 'private' && (
+                            <Box>
+                                <Text color="gray.200" fontWeight="semibold" mb={2}>Share With</Text>
+                                <TagsInput.Root
+                                    value={sharedEmails}
+                                    onValueChange={(details) => setSharedEmails(details.value)}
+                                    inputValue={shareEmailInput}
+                                    onInputValueChange={(details) => setShareEmailInput(details.inputValue)}
+                                    delimiter="Enter"
+                                    colorPalette="gray"
+                                    size="sm"
+                                >
+                                    <TagsInput.Control bg="gray.700" borderColor="gray.600" minH="44px">
+                                        <TagsInput.Items />
+                                        <TagsInput.Input
+                                            placeholder="Type email and press Enter or Space"
+                                            color="white"
+                                            onKeyDown={(event) => {
+                                                if (event.key === ' ') {
+                                                    event.preventDefault()
+                                                    commitShareEmailInput()
+                                                }
+                                            }}
+                                        />
+                                    </TagsInput.Control>
+                                </TagsInput.Root>
+                                <Text color="gray.400" fontSize="sm">Press Enter or Space to add an address.</Text>
+                            </Box>
+                        )}
 
                         <Box>
                             <Text color="gray.200" fontWeight="semibold">Max downloads</Text>
