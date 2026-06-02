@@ -12,6 +12,7 @@ import BrowsePage from './pages/BrowsePage.jsx'
 import ProfilePage from './pages/ProfilePage.jsx'
 import FaqPage from './pages/FaqPage.jsx'
 import PrivacyPage from './pages/PrivacyPage.jsx'
+import ApiDocsPage from './pages/ApiDocsPage.jsx'
 import AccountPage from './pages/AccountPage.jsx'
 import FilePage from './pages/FilePage.jsx'
 import PasswordResetPage from './pages/PasswordResetPage.jsx'
@@ -59,6 +60,7 @@ function App() {
                 <Route path="/file/:fileId" element={<FilePage />} />
                 <Route path="/faq" element={<FaqPage />} />
                 <Route path="/privacy" element={<PrivacyPage />} />
+                <Route path="/api-docs" element={<ApiDocsPage />} />
             </Routes>
         </>
     )

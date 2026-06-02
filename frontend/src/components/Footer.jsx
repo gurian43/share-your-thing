@@ -34,6 +34,14 @@ const Footer = () => {
 					>
 						Privacy Policy
 					</Link>
+					<Link
+						as={RouterLink}
+						to="/api-docs"
+						color="gray.200"
+						_hover={{ color: 'purple.200' }}
+					>
+						API
+					</Link>
 				</HStack>
 			</HStack>
 		</Box>
