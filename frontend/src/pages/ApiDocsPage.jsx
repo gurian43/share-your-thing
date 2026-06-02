@@ -4,7 +4,7 @@ import Footer from '../components/Footer'
 
 const ApiDocsPage = () => {
     return (
-        <Box minH="100vh" bg="gray.900" color="gray.200">
+        <Box minH="100vh" bg="gray.900" color="gray.200" display="flex" flexDirection="column">
             <Header />
             <Container maxW="900px" py={8}>
                 <VStack align="stretch" spacing={6}>
