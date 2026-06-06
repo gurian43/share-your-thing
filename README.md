@@ -101,8 +101,17 @@ VITE_TURNSTILE_SITE_KEY=your_turnstile_site_key
 
 2) Build and start with docker-compose
 
+If you only changed backend code or the Dockerfile, target the backend service only:
+
 ```bash
-docker compose build
+docker compose build --no-cache backend
+docker compose up -d backend
+```
+
+If you want to rebuild everything, omit the service name:
+
+```bash
+docker compose build --no-cache
 docker compose up -d
 ```
 
