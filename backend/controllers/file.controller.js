@@ -69,6 +69,11 @@ const removeUploadArtifacts = async (tempDir, chunkPath) => {
     }
 };
 
+const moveFileAcrossDevices = async (srcPath, destPath) => {
+    await fs.promises.copyFile(srcPath, destPath);
+    await fs.promises.unlink(srcPath).catch(() => {});
+};
+
 export const getFileById = async (req, res) => {
     try {
         const { fileId } = req.params;
@@ -495,7 +500,7 @@ export const uploadChunk = async (req, res) => {
         // Move chunk to temp directory
         const chunkPath = path.join(tempDir, `chunk-${chunkIndex}`);
         try {
-            await fs.promises.rename(req.file.path, chunkPath);
+            await moveFileAcrossDevices(req.file.path, chunkPath);
         } catch (err) {
             console.error('Error saving chunk:', err);
             await removeUploadArtifacts(tempDir, req.file.path);
