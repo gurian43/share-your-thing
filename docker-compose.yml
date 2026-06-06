@@ -1,10 +1,4 @@
 services:
-  mongo:
-    image: mongo:6
-    restart: unless-stopped
-    volumes:
-      - ./data/db:/data/db
-
   backend:
     build:
       context: .
@@ -14,6 +8,4 @@ services:
       - ./uploads:/app/uploads
     ports:
       - "127.0.0.1:3003:3003"
-    depends_on:
-      - mongo
     restart: unless-stopped
