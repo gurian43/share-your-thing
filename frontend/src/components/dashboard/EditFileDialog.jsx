@@ -154,7 +154,8 @@ const EditFileDialog = ({ isOpen, file, onClose, onSaved }) => {
                 <Dialog.Header>
                     <Dialog.Title color="white">Edit {file.name}</Dialog.Title>
                 </Dialog.Header>
-                <Dialog.Body>
+                <form onSubmit={(e) => { e.preventDefault(); handleSave(); }}>
+                    <Dialog.Body>
                     <VStack spacing={3} align="stretch">
                         <Box>
                             <Text color="gray.200" fontWeight="semibold">File name</Text>
@@ -265,9 +266,10 @@ const EditFileDialog = ({ isOpen, file, onClose, onSaved }) => {
                 <Dialog.Footer>
                     <HStack spacing={3} justify="flex-end">
                         <Button variant="outline" color="white" borderColor="gray.600" onClick={onClose}>Cancel</Button>
-                        <Button bg="purple.600" color="white" onClick={handleSave} loading={submitting} disabled={submitting}>Save</Button>
+                        <Button type="submit" bg="purple.600" color="white" onClick={handleSave} loading={submitting} disabled={submitting}>Save</Button>
                     </HStack>
                 </Dialog.Footer>
+                    </form>
                 <Dialog.CloseTrigger />
             </Dialog.Content>
         </Dialog.Root>

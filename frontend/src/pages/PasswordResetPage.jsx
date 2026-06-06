@@ -262,113 +262,117 @@ const PasswordResetPage = () => {
                         )}
 
                         {showEmailForm && (
-                            <Fieldset.Root>
-                                <Fieldset.Content gap={4}>
-                                    <Text color="gray.300" textAlign="center">
-                                        {emailSent
-                                            ? <>If an account exists for <Text as="span" color="purple.300">{email}</Text>, a password reset link has been sent.</>
-                                            : tokenStatus === 'invalid'
-                                            ? tokenMessage || 'That reset link is no longer valid. Request a new one below.'
-                                            : 'Enter your email and we will send you a password reset link.'}
-                                    </Text>
-                                    {!emailSent && (
-                                        <>
-                                            <Field.Root>
-                                                <Field.Label color="gray.300">
-                                                    Email
-                                                </Field.Label>
-                                                <Input
-                                                    type="email"
-                                                    value={email}
-                                                    onChange={(e) => setEmail(e.target.value)}
-                                                    placeholder="Enter your email"
-                                                    bg="gray.700"
-                                                    color="white"
-                                                    _placeholder={{ color: 'gray.400' }}
-                                                    required
-                                                />
-                                            </Field.Root>
+                            <form onSubmit={(e) => { e.preventDefault(); handleRequestResetEmail(); }}>
+                                <Fieldset.Root>
+                                    <Fieldset.Content gap={4}>
+                                        <Text color="gray.300" textAlign="center">
+                                            {emailSent
+                                                ? <>If an account exists for <Text as="span" color="purple.300">{email}</Text>, a password reset link has been sent.</>
+                                                : tokenStatus === 'invalid'
+                                                ? tokenMessage || 'That reset link is no longer valid. Request a new one below.'
+                                                : 'Enter your email and we will send you a password reset link.'}
+                                        </Text>
+                                        {!emailSent && (
+                                            <>
+                                                <Field.Root>
+                                                    <Field.Label color="gray.300">
+                                                        Email
+                                                    </Field.Label>
+                                                    <Input
+                                                        type="email"
+                                                        value={email}
+                                                        onChange={(e) => setEmail(e.target.value)}
+                                                        placeholder="Enter your email"
+                                                        bg="gray.700"
+                                                        color="white"
+                                                        _placeholder={{ color: 'gray.400' }}
+                                                        required
+                                                    />
+                                                </Field.Root>
 
-                                            <Button
-                                                type="button"
-                                                w="full"
-                                                bg="purple.600"
-                                                color="white"
-                                                loading={emailLoading}
-                                                loadingText="Sending"
-                                                _hover={{
-                                                    bg: 'purple.500'
-                                                }}
-                                                onClick={handleRequestResetEmail}
-                                            >
-                                                Send reset link
-                                            </Button>
-                                        </>
-                                    )}
-                                </Fieldset.Content>
-                            </Fieldset.Root>
+                                                <Button
+                                                    type="submit"
+                                                    w="full"
+                                                    bg="purple.600"
+                                                    color="white"
+                                                    loading={emailLoading}
+                                                    loadingText="Sending"
+                                                    _hover={{
+                                                        bg: 'purple.500'
+                                                    }}
+                                                    onClick={handleRequestResetEmail}
+                                                >
+                                                    Send reset link
+                                                </Button>
+                                            </>
+                                        )}
+                                    </Fieldset.Content>
+                                </Fieldset.Root>
+                            </form>
                         )}
 
                         {showPasswordForm && (
-                            <Fieldset.Root>
-                                <Fieldset.Content gap={4}>
-                                    <Text color="gray.300" textAlign="center">
-                                        Enter your new password twice to complete the reset.
-                                    </Text>
+                            <form onSubmit={(e) => { e.preventDefault(); handleResetPassword(); }}>
+                                <Fieldset.Root>
+                                    <Fieldset.Content gap={4}>
+                                        <Text color="gray.300" textAlign="center">
+                                            Enter your new password twice to complete the reset.
+                                        </Text>
 
-                                    <Field.Root>
-                                        <Field.Label color="gray.300">
-                                            New Password
-                                        </Field.Label>
-                                        <PasswordInput
-                                            value={newPassword}
-                                            onChange={(e) => setNewPassword(e.target.value)}
-                                            placeholder="Enter your new password"
-                                            bg="gray.700"
+                                        <Field.Root>
+                                            <Field.Label color="gray.300">
+                                                New Password
+                                            </Field.Label>
+                                            <PasswordInput
+                                                value={newPassword}
+                                                onChange={(e) => setNewPassword(e.target.value)}
+                                                placeholder="Enter your new password"
+                                                bg="gray.700"
+                                                color="white"
+                                                _placeholder={{ color: 'gray.400' }}
+                                                required
+                                            />
+                                        </Field.Root>
+
+                                        <Field.Root>
+                                            <Field.Label color="gray.300">
+                                                Confirm Password
+                                            </Field.Label>
+                                            <PasswordInput
+                                                value={confirmPassword}
+                                                onChange={(e) => setConfirmPassword(e.target.value)}
+                                                placeholder="Confirm your new password"
+                                                bg="gray.700"
+                                                color="white"
+                                                _placeholder={{ color: 'gray.400' }}
+                                                required
+                                            />
+                                        </Field.Root>
+
+                                        <Text color={hasMinLength ? 'green.300' : 'red.300'} fontSize="sm">
+                                            At least 8 characters
+                                        </Text>
+                                        <Text color={hasNumber ? 'green.300' : 'red.300'} fontSize="sm" mt={-3}>
+                                            At least 1 number
+                                        </Text>
+
+                                        <Button
+                                            type="submit"
+                                            w="full"
+                                            bg="purple.600"
                                             color="white"
-                                            _placeholder={{ color: 'gray.400' }}
-                                            required
-                                        />
-                                    </Field.Root>
-
-                                    <Field.Root>
-                                        <Field.Label color="gray.300">
-                                            Confirm Password
-                                        </Field.Label>
-                                        <PasswordInput
-                                            value={confirmPassword}
-                                            onChange={(e) => setConfirmPassword(e.target.value)}
-                                            placeholder="Confirm your new password"
-                                            bg="gray.700"
-                                            color="white"
-                                            _placeholder={{ color: 'gray.400' }}
-                                            required
-                                        />
-                                    </Field.Root>
-
-                                    <Text color={hasMinLength ? 'green.300' : 'red.300'} fontSize="sm">
-                                        At least 8 characters
-                                    </Text>
-                                    <Text color={hasNumber ? 'green.300' : 'red.300'} fontSize="sm" mt={-3}>
-                                        At least 1 number
-                                    </Text>
-
-                                    <Button
-                                        type="button"
-                                        w="full"
-                                        bg="purple.600"
-                                        color="white"
-                                        loading={resetLoading}
-                                        loadingText="Resetting"
-                                        _hover={{
-                                            bg: 'purple.500'
-                                        }}
-                                        onClick={handleResetPassword}
-                                    >
-                                        Reset password
-                                    </Button>
-                                </Fieldset.Content>
-                            </Fieldset.Root>
+                                            loading={resetLoading}
+                                            loadingText="Resetting"
+                                            _hover={{
+                                                bg: 'purple.500'
+                                            }}
+                                            onClick={handleResetPassword}
+                                        >
+                                            Reset password
+                                        </Button>
+                                    </Fieldset.Content>
+                                </Fieldset.Root>
+                            </form>
                         )}
 
                         <ChakraLink

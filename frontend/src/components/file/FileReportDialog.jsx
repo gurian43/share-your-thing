@@ -32,7 +32,8 @@ const FileReportDialog = ({ isOpen, onCancel, fileName, onConfirm, isSubmitting 
 				<Dialog.Header>
 					<Dialog.Title color="white">Report {fileName}</Dialog.Title>
 				</Dialog.Header>
-				<Dialog.Body>
+				<form onSubmit={(e) => { e.preventDefault(); handleConfirm(); }}>
+					<Dialog.Body>
 					<VStack spacing={4} align="stretch">
 						<VStack spacing={2} align="stretch">
 							<Text color="gray.200" fontWeight="semibold" fontSize="sm">
@@ -77,9 +78,9 @@ const FileReportDialog = ({ isOpen, onCancel, fileName, onConfirm, isSubmitting 
 							Cancel
 						</Button>
 						<Button
+							type="submit"
 							bg="red.600"
 							color="white"
-							onClick={handleConfirm}
 							loading={isSubmitting}
 							loadingText="Submitting"
 							disabled={!canSubmit}
@@ -90,6 +91,7 @@ const FileReportDialog = ({ isOpen, onCancel, fileName, onConfirm, isSubmitting 
 						</Button>
 					</HStack>
 				</Dialog.Footer>
+				</form>
 				<Dialog.CloseTrigger />
 			</Dialog.Content>
 		</Dialog.Root>

@@ -285,86 +285,65 @@ const RegisterPage = () => {
 
                 <Box w="full" bg="gray.800" p={{ base: 4, md: 7 }} borderRadius="lg" borderTop="2px" borderColor="purple.500">
                     {step === 1 && (
-                        <Fieldset.Root>
-                            <Fieldset.Content gap={{ base: 2, md: 4 }}>
-                                <HStack w="full" spacing={3} align="flex-start">
-                                    <Field.Root invalid={Boolean(errors.username)} flex={1}>
-                                        <Field.Label color="gray.300" fontSize={{ base: 'sm', md: 'md' }}>
-                                            Username
-                                        </Field.Label>
-                                        <Input
-                                            type="text"
-                                            name="username"
-                                            placeholder='Username'
-                                            value={username}
-                                            onChange={(e) => handleUsernameChange(e.target.value)}
-                                            size={{ base: 'sm', md: 'md' }}
-                                            bg="gray.700"
-                                            borderColor="gray.600"
-                                            color="white"
-                                            _placeholder={{ color: 'gray.400' }}
-                                            required
-                                        />
-                                        {errors.username && (
-                                            <Field.ErrorText>{errors.username}</Field.ErrorText>
-                                        )}
-                                    </Field.Root>
-                                    <Field.Root invalid={Boolean(errors.email)} flex={1}>
-                                        <Field.Label color="gray.300" fontSize={{ base: 'sm', md: 'md' }}>
-                                            Email
-                                        </Field.Label>
-                                        <Input
-                                            type="email"
-                                            name="email"
-                                            placeholder='example@email.com'
-                                            value={email}
-                                            onChange={(e) => handleEmailChange(e.target.value)}
-                                            size={{ base: 'sm', md: 'md' }}
-                                            bg="gray.700"
-                                            borderColor="gray.600"
-                                            color="white"
-                                            _placeholder={{ color: 'gray.400' }}
-                                            required
-                                        />
-                                        {errors.email && (
-                                            <Field.ErrorText>{errors.email}</Field.ErrorText>
-                                        )}
-                                    </Field.Root>
-                                </HStack>
+                        <form onSubmit={(e) => { e.preventDefault(); handleSubmit(); }}>
+                            <Fieldset.Root>
+                                <Fieldset.Content gap={{ base: 2, md: 4 }}>
+                                    <HStack w="full" spacing={3} align="flex-start">
+                                        <Field.Root invalid={Boolean(errors.username)} flex={1}>
+                                            <Field.Label color="gray.300" fontSize={{ base: 'sm', md: 'md' }}>
+                                                Username
+                                            </Field.Label>
+                                            <Input
+                                                type="text"
+                                                name="username"
+                                                placeholder='Username'
+                                                value={username}
+                                                onChange={(e) => handleUsernameChange(e.target.value)}
+                                                size={{ base: 'sm', md: 'md' }}
+                                                bg="gray.700"
+                                                borderColor="gray.600"
+                                                color="white"
+                                                _placeholder={{ color: 'gray.400' }}
+                                                required
+                                            />
+                                            {errors.username && (
+                                                <Field.ErrorText>{errors.username}</Field.ErrorText>
+                                            )}
+                                        </Field.Root>
+                                        <Field.Root invalid={Boolean(errors.email)} flex={1}>
+                                            <Field.Label color="gray.300" fontSize={{ base: 'sm', md: 'md' }}>
+                                                Email
+                                            </Field.Label>
+                                            <Input
+                                                type="email"
+                                                name="email"
+                                                placeholder='example@email.com'
+                                                value={email}
+                                                onChange={(e) => handleEmailChange(e.target.value)}
+                                                size={{ base: 'sm', md: 'md' }}
+                                                bg="gray.700"
+                                                borderColor="gray.600"
+                                                color="white"
+                                                _placeholder={{ color: 'gray.400' }}
+                                                required
+                                            />
+                                            {errors.email && (
+                                                <Field.ErrorText>{errors.email}</Field.ErrorText>
+                                            )}
+                                        </Field.Root>
+                                    </HStack>
 
-                                <HStack w="full" spacing={3} align="flex-start">
-                                    <Field.Root invalid={Boolean(errors.password)} flex={1}>
-                                    <Field.Label color="gray.300" fontSize={{ base: 'sm', md: 'md' }}>
-                                        Password
-                                    </Field.Label>
-                                    <PasswordInput
-                                        type="password"
-                                        name="password"
-                                        placeholder='Enter your password'
-                                        value={password}
-                                        onChange={(e) => handlePasswordChange(e.target.value)}
-                                        size={{ base: 'sm', md: 'md' }}
-                                        bg="gray.700"
-                                        borderColor="gray.600"
-                                        color="white"
-                                        _placeholder={{ color: 'gray.400' }}
-                                        required
-                                    />
-                                    {errors.password && (
-                                        <Field.ErrorText>{errors.password}</Field.ErrorText>
-                                    )}
-                                    </Field.Root>
-
-                                    <Field.Root invalid={Boolean(errors.confirmPassword)} flex={1}>
+                                    <HStack w="full" spacing={3} align="flex-start">
+                                        <Field.Root invalid={Boolean(errors.password)} flex={1}>
                                         <Field.Label color="gray.300" fontSize={{ base: 'sm', md: 'md' }}>
-                                            Confirm Password
+                                            Password
                                         </Field.Label>
-                                        <Input
+                                        <PasswordInput
                                             type="password"
-                                            name="confirmPassword"
-                                            placeholder='Confirm your password'
-                                            value={confirmPassword}
-                                            onChange={(e) => handleConfirmPasswordChange(e.target.value)}
+                                            name="password"
+                                            placeholder='Enter your password'
+                                            value={password}
+                                            onChange={(e) => handlePasswordChange(e.target.value)}
                                             size={{ base: 'sm', md: 'md' }}
                                             bg="gray.700"
                                             borderColor="gray.600"
@@ -372,65 +351,88 @@ const RegisterPage = () => {
                                             _placeholder={{ color: 'gray.400' }}
                                             required
                                         />
-                                        {errors.confirmPassword && (
-                                            <Field.ErrorText>{errors.confirmPassword}</Field.ErrorText>
+                                        {errors.password && (
+                                            <Field.ErrorText>{errors.password}</Field.ErrorText>
                                         )}
-                                    </Field.Root>
-                                </HStack>
+                                        </Field.Root>
 
-                                <List.Root
-                                    color="gray.400"
-                                    fontSize={{ base: 'xs', md: 'sm' }}
-                                    ml={{ base: 4, md: 8 }}
-                                    gap={{ base: 4, md: 8 }}
-                                    display={{ base: 'none', md: 'flex' }}
-                                    flexDirection="row"
-                                    w="full"
-                                >
-                                        <List.Item color={hasMinLength ? 'green.300' : 'red.300'}>
-                                            At least 8 characters
-                                        </List.Item>
-                                        <List.Item color={hasNumber ? 'green.300' : 'red.300'}>
-                                            At least 1 number
-                                        </List.Item>
-                                    </List.Root>
+                                        <Field.Root invalid={Boolean(errors.confirmPassword)} flex={1}>
+                                            <Field.Label color="gray.300" fontSize={{ base: 'sm', md: 'md' }}>
+                                                Confirm Password
+                                            </Field.Label>
+                                            <Input
+                                                type="password"
+                                                name="confirmPassword"
+                                                placeholder='Confirm your password'
+                                                value={confirmPassword}
+                                                onChange={(e) => handleConfirmPasswordChange(e.target.value)}
+                                                size={{ base: 'sm', md: 'md' }}
+                                                bg="gray.700"
+                                                borderColor="gray.600"
+                                                color="white"
+                                                _placeholder={{ color: 'gray.400' }}
+                                                required
+                                            />
+                                            {errors.confirmPassword && (
+                                                <Field.ErrorText>{errors.confirmPassword}</Field.ErrorText>
+                                            )}
+                                        </Field.Root>
+                                    </HStack>
 
-                                <Box w="full" display="flex" justifyContent="center" mt={{ base: 1, md: 0 }}>
-                                    <Turnstile
-                                        key={captchaKey}
-                                        siteKey={import.meta.env.VITE_TURNSTILE_SITE_KEY}
-                                        onSuccess={(token) => setCaptchaToken(token)}
-                                        onError={() => setCaptchaToken(null)}
-                                        onExpire={() => setCaptchaToken(null)}
-                                        options={{ theme: 'dark', size: 'flexible' }}
-                                    />
-                                </Box>
-                                <Button
-                                    type="submit"
-                                    w="full"
-                                    bg="purple.600"
-                                    color="white"
-                                    loading={loading}
-                                    loadingText="Signing Up"
-                                    isDisabled={!captchaToken}
-                                    size={{ base: 'sm', md: 'md' }}
-                                    _hover={{ 
-                                        bg: 'purple.500',
-                                        boxShadow: '0 0 20px rgba(168, 85, 247, 0.6)'
-                                    }}
-                                    onClick={handleSubmit}
-                                >
-                                    Sign Up
-                                </Button>
+                                    <List.Root
+                                        color="gray.400"
+                                        fontSize={{ base: 'xs', md: 'sm' }}
+                                        ml={{ base: 4, md: 8 }}
+                                        gap={{ base: 4, md: 8 }}
+                                        display={{ base: 'none', md: 'flex' }}
+                                        flexDirection="row"
+                                        w="full"
+                                    >
+                                            <List.Item color={hasMinLength ? 'green.300' : 'red.300'}>
+                                                At least 8 characters
+                                            </List.Item>
+                                            <List.Item color={hasNumber ? 'green.300' : 'red.300'}>
+                                                At least 1 number
+                                            </List.Item>
+                                        </List.Root>
 
-                                {errors.submit && (
-                                    <Text color="red.300" fontSize="sm" mt={3} textAlign="center">
-                                        {errors.submit}
-                                    </Text>
-                                )}
+                                    <Box w="full" display="flex" justifyContent="center" mt={{ base: 1, md: 0 }}>
+                                        <Turnstile
+                                            key={captchaKey}
+                                            siteKey={import.meta.env.VITE_TURNSTILE_SITE_KEY}
+                                            onSuccess={(token) => setCaptchaToken(token)}
+                                            onError={() => setCaptchaToken(null)}
+                                            onExpire={() => setCaptchaToken(null)}
+                                            options={{ theme: 'dark', size: 'flexible' }}
+                                        />
+                                    </Box>
+                                    <Button
+                                        type="submit"
+                                        w="full"
+                                        bg="purple.600"
+                                        color="white"
+                                        loading={loading}
+                                        loadingText="Signing Up"
+                                        isDisabled={!captchaToken}
+                                        size={{ base: 'sm', md: 'md' }}
+                                        _hover={{ 
+                                            bg: 'purple.500',
+                                            boxShadow: '0 0 20px rgba(168, 85, 247, 0.6)'
+                                        }}
+                                        onClick={handleSubmit}
+                                    >
+                                        Sign Up
+                                    </Button>
 
-                            </Fieldset.Content>
-                        </Fieldset.Root>
+                                    {errors.submit && (
+                                        <Text color="red.300" fontSize="sm" mt={3} textAlign="center">
+                                            {errors.submit}
+                                        </Text>
+                                    )}
+
+                                </Fieldset.Content>
+                            </Fieldset.Root>
+                        </form>
                     )}
 
                     {step === 2 && (
