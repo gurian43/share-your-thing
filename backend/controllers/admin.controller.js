@@ -6,6 +6,12 @@ import File from '../models/file.model.js';
 import Report from '../models/report.model.js';
 import User from '../models/user.model.js';
 
+const logInfo = (fn, msg) => console.log(`[${fn}] ${msg}`);
+const logWarn = (fn, msg) => console.warn(`[${fn}] ${msg}`);
+const logError = (fn, err, extra = '') => {
+    console.error(`[${fn}] ${extra}`.trim(), err);
+};
+
 const mapReport = (report) => ({
     id: report._id,
     resolved: report.resolved,
@@ -77,8 +83,10 @@ export const updateReport = async (req, res) => {
     try {
         const { reportId } = req.params;
         const { resolved } = req.body || {};
+        logInfo('updateReport', `Request received reportId=${reportId}, resolved=${resolved}`);
 
         if (!reportId || !mongoose.Types.ObjectId.isValid(reportId)) {
+            logWarn('updateReport', `Invalid reportId=${reportId}`);
             return res.status(400).json({ status: 400, message: 'Valid report ID is required' });
         }
 
@@ -89,6 +97,7 @@ export const updateReport = async (req, res) => {
 
         report.resolved = typeof resolved === 'boolean' ? resolved : !report.resolved;
         await report.save();
+        logInfo('updateReport', `Report updated reportId=${report._id}, resolved=${report.resolved}`);
 
         return res.status(200).json({
             status: 200,
@@ -99,7 +108,7 @@ export const updateReport = async (req, res) => {
             },
         });
     } catch (err) {
-        console.error('Error updating report:', err);
+        logError('updateReport', err, 'Error updating report:');
         return res.status(500).json({ status: 500, message: 'Internal server error' });
     }
 };
@@ -107,19 +116,23 @@ export const updateReport = async (req, res) => {
 export const deleteReport = async (req, res) => {
     try {
         const { reportId } = req.params;
+        logInfo('deleteReport', `Request received reportId=${reportId}`);
 
         if (!reportId || !mongoose.Types.ObjectId.isValid(reportId)) {
+            logWarn('deleteReport', `Invalid reportId=${reportId}`);
             return res.status(400).json({ status: 400, message: 'Valid report ID is required' });
         }
 
         const deletedReport = await Report.findByIdAndDelete(reportId);
         if (!deletedReport) {
+            logWarn('deleteReport', `Report not found reportId=${reportId}`);
             return res.status(404).json({ status: 404, message: 'Report not found' });
         }
 
+        logInfo('deleteReport', `Report deleted reportId=${reportId}`);
         return res.status(200).json({ status: 200, message: 'Report deleted successfully' });
     } catch (err) {
-        console.error('Error deleting report:', err);
+        logError('deleteReport', err, 'Error deleting report:');
         return res.status(500).json({ status: 500, message: 'Internal server error' });
     }
 };
@@ -127,8 +140,10 @@ export const deleteReport = async (req, res) => {
 export const deleteFileAsAdmin = async (req, res) => {
     try {
         const { fileId } = req.params;
+        logInfo('deleteFileAsAdmin', `Request received fileId=${fileId}`);
 
         if (!fileId || !mongoose.Types.ObjectId.isValid(fileId)) {
+            logWarn('deleteFileAsAdmin', `Invalid fileId=${fileId}`);
             return res.status(400).json({ status: 400, message: 'Valid file ID is required' });
         }
 
@@ -140,7 +155,7 @@ export const deleteFileAsAdmin = async (req, res) => {
         try {
             await deleteFileFromDisk(file);
         } catch (err) {
-            console.error('Error deleting file from disk:', err);
+            logError('deleteFileAsAdmin', err, 'Error deleting file from disk:');
             return res.status(500).json({ status: 500, message: 'Failed to delete file from storage' });
         }
 
@@ -152,6 +167,7 @@ export const deleteFileAsAdmin = async (req, res) => {
 
         await Report.deleteMany({ file_id: file._id });
         await File.findByIdAndDelete(fileId);
+        logInfo('deleteFileAsAdmin', `File deleted as admin fileId=${fileId}`);
 
         return res.status(200).json({ status: 200, message: 'File deleted successfully' });
     } catch (err) {
