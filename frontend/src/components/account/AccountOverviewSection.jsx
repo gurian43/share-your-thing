@@ -1,0 +1,31 @@
+import { Button, Heading, Span, Text, VStack } from '@chakra-ui/react'
+import { LuRefreshCw } from 'react-icons/lu'
+
+const AccountOverviewSection = ({ user, usedStorage, onRecalculateStorage }) => {
+
+    return (
+        <VStack align="flex-start" spacing={6}>
+            <Heading color="white" size="xl">Account Overview</Heading>
+            <Text color="gray.400">Email: {user.email}</Text>
+            <Text color="gray.400">Account Type: <strong>{user.role === 'admin' ? 'Administrator' : 'Standard User'}</strong></Text>
+            <Text color="gray.400">
+                Storage Used: {usedStorage} MB / {user.role === 'admin' ? 'Unlimited' : `${(user.max_storage / (1024 * 1024)).toFixed(2)} MB`}
+            </Text>
+            <Text color="gray.400">Status: <Span color="green.400">{user.active ? 'Active' : 'Inactive'}</Span></Text>
+            <Button
+                variant="outline"
+                colorPalette="gray"
+                color="gray.200"
+                px={4}
+                py={2}
+                borderColor="gray.600"
+                _hover={{ bg: 'gray.700', color: 'white' }}
+                onClick={onRecalculateStorage}
+            >
+                Recalculate Storage Usage <LuRefreshCw />
+            </Button>
+        </VStack>
+    )
+}
+
+export default AccountOverviewSection

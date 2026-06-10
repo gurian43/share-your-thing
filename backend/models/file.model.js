@@ -10,6 +10,10 @@ const fileSchema = new mongoose.Schema({
         type: String, 
         required: true 
     },
+    original_file_name: {
+        type: String,
+        default: ''
+    },
     file_path: { 
         type: String, 
         required: true 
@@ -24,6 +28,10 @@ const fileSchema = new mongoose.Schema({
         default: "unlisted" 
     },
     password: { 
+        type: String, 
+        default: null 
+    },
+    encryption_iv: { 
         type: String, 
         default: null 
     },
@@ -48,9 +56,17 @@ const fileSchema = new mongoose.Schema({
         ref: "User",
         default: []
     }],
+    shared_with_emails: [{
+        type: String,
+        default: []
+    }],
+    active: {
+        type: Boolean,
+        default: true
+    },
     expires_at: { 
         type: Date, 
-        default: null 
+        default: null
     },
     uploaded_at: { 
         type: Date, 

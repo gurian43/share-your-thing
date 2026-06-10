@@ -3,7 +3,7 @@ import mongoose from "mongoose";
 const reportSchema = new mongoose.Schema({
     reporter_id: { 
         type: mongoose.Schema.Types.ObjectId,
-        ref: "user",
+        ref: "User",
         required: true
     },
     file_id: { 

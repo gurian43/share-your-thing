@@ -27,6 +27,11 @@ export const getFileType = (fileName) => {
     return ext || 'unknown'
 }
 
+export const trimFileName = (fileName, maxLength = 30) => {
+    if (!fileName || fileName.length <= maxLength) return { name: fileName, trimmed: false }
+    return { name: fileName.substring(0, maxLength - 3) + '...', trimmed: true }
+}
+
 export const getFileIcon = (fileName, size = 24) => {
     const ext = getFileExtension(fileName)
     const iconProps = { size }

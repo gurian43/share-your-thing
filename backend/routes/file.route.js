@@ -1,40 +1,39 @@
 import express from 'express';
 import multer from 'multer';
-import path from 'path';
-import fs from 'fs';
-import { getFileById, getUserFiles, deleteFile, uploadFile } from '../controllers/file.controller.js';
+import { getFileById, getUserFiles, getPublicFiles, deleteFile, uploadChunk, finalizeUpload, getUploadStatus, cancelUpload, downloadFile, voteFile, updateFileShareSettings, changeFilePassword, updateFileMetadata } from '../controllers/file.controller.js';
+import { reportFile } from '../controllers/report.controller.js';
 import requireAuth from '../services/protectedRoute.js';
+import os from 'os';
 
 const router = express.Router();
 
-const storage = multer.diskStorage({
+const chunkStorage = multer.diskStorage({
 	destination: (req, file, cb) => {
 		const userId = req.session?.userId;
-			if (!userId) return cb(new Error('User session missing for upload'));
-			const userKey = String(userId);
-		const uploadsRoot = path.resolve(process.cwd(), 'uploads');
-		const userDir = path.join(uploadsRoot, userKey);
-		try {
-			if (!fs.existsSync(userDir)) {
-				fs.mkdirSync(userDir, { recursive: true });
-			}
-		} catch (e) {
-			return cb(e);
-		}
-		cb(null, userDir);
+        if (!userId) return cb(new Error('User session missing for upload'));
+        cb(null, os.tmpdir());
 	},
 	filename: (req, file, cb) => {
-		const timestamp = Date.now();
-		const sanitizedOriginal = file.originalname.replace(/[^a-zA-Z0-9._-]/g, '_');
-		cb(null, `${timestamp}-${sanitizedOriginal}`);
+		const uniqueId = Math.random().toString(36).substring(2, 15);
+		cb(null, `chunk-${uniqueId}`);
 	}
 });
 
-const upload = multer({ storage });
+const chunkUpload = multer({ storage: chunkStorage, limits: { fileSize: 8 * 1024 * 1024 } });
 
-router.get('/:fileId', getFileById);
+router.get('/upload/status', requireAuth, getUploadStatus);
+router.post('/upload/chunk', requireAuth, chunkUpload.single('chunk'), uploadChunk);
+router.post('/upload/cancel', requireAuth, cancelUpload);
+router.post('/upload/finalize', requireAuth, finalizeUpload);
 router.get('/', requireAuth, getUserFiles);
-router.post('/upload', requireAuth, upload.single('file'), uploadFile);
+router.get('/public', getPublicFiles);
+router.post('/:fileId/report', requireAuth, reportFile);
+router.post('/:fileId/vote', requireAuth, voteFile);
+router.put('/:fileId/share', requireAuth, updateFileShareSettings);
+router.post('/:fileId/password', requireAuth, changeFilePassword);
+router.put('/:fileId', requireAuth, updateFileMetadata);
+router.post('/:fileId/download', downloadFile);
+router.get('/:fileId', getFileById);
 router.delete('/:fileId', requireAuth, deleteFile);
 
 export default router;

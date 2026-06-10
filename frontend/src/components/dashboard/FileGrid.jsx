@@ -1,10 +1,8 @@
-import { Box, Card, Flex, Grid, HStack, IconButton, Separator, Text, VStack } from '@chakra-ui/react'
-import { LuDownload, LuShare2, LuTrash2 } from 'react-icons/lu'
-import { formatBytes, getFileIcon } from '../../utils/fileUtils'
+import { Box, Card, Flex, Grid, HStack, IconButton, Separator, Text, VStack, Badge } from '@chakra-ui/react'
+import { LuDownload, LuShare2, LuTrash2, LuPencil } from 'react-icons/lu'
+import { formatBytes, getFileIcon, trimFileName } from '../../utils/fileUtils'
 
-const noop = () => {}
-
-const FileGrid = ({ files, onOpenFile, onShare = noop, onDelete = noop, onDownload = noop }) => {
+const FileGrid = ({ files, onOpenFile, onShare, onDelete, onDownload, onEdit }) => {
     return (
         <Grid templateColumns={{ base: 'repeat(2, minmax(0, 1fr))', sm: 'repeat(3, minmax(0, 1fr))', md: 'repeat(auto-fill, minmax(200px, 1fr))' }} gap={4}>
             {files.map((file) => (
@@ -23,6 +21,11 @@ const FileGrid = ({ files, onOpenFile, onShare = noop, onDelete = noop, onDownlo
                                 <Box color="purple.300">
                                     {getFileIcon(file.type)}
                                 </Box>
+                                {!file.active && (
+                                    <Badge colorPalette="red" fontSize="xs">
+                                        Inactive
+                                    </Badge>
+                                )}
                             </Flex>
 
                             <VStack align="start" spacing={1}>
@@ -31,8 +34,9 @@ const FileGrid = ({ files, onOpenFile, onShare = noop, onDelete = noop, onDownlo
                                     fontSize="sm"
                                     fontWeight="medium"
                                     noOfLines={1}
+                                    title={trimFileName(file.name, 25).trimmed ? file.name : undefined}
                                 >
-                                    {file.name}
+                                    {trimFileName(file.name, 25).name}
                                 </Text>
                                 <HStack spacing={2} fontSize="xs" color="gray.400">
                                     <Text>{formatBytes(file.size)}</Text>
@@ -62,6 +66,18 @@ const FileGrid = ({ files, onOpenFile, onShare = noop, onDelete = noop, onDownlo
                                     }}
                                 >
                                     <LuDownload size={16} />
+                                </IconButton>
+                                <IconButton
+                                    size="xs"
+                                    variant="ghost"
+                                    color="gray.400"
+                                    _hover={{ color: 'purple.300', bg: 'gray.700' }}
+                                    onClick={(e) => {
+                                        e.stopPropagation()
+                                        onEdit && onEdit(file)
+                                    }}
+                                >
+                                    <LuPencil size={16} />
                                 </IconButton>
                                 <IconButton
                                     size="xs"

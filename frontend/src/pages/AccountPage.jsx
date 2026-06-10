@@ -1,10 +1,14 @@
-import { Alert, Box, Button, Container, Dialog, Heading, HStack, Separator, Span, Text, VStack } from '@chakra-ui/react'
+import { Box, Button, Container, Heading, HStack, Separator, VStack } from '@chakra-ui/react'
 import Header from '../components/Header'
 import Footer from '../components/Footer'
 import { useState } from 'react';
 import { toaster } from '../components/ui/toaster';
 import { useNavigate } from 'react-router-dom';
 import { useAuth } from '../context/AuthContext';
+import AccountOverviewSection from '../components/account/AccountOverviewSection';
+import ChangePasswordSection from '../components/account/ChangePasswordSection';
+import DeleteAccountSection from '../components/account/DeleteAccountSection';
+import DeleteAccountDialog from '../components/account/DeleteAccountDialog';
 
 
 const AccountPage = () => {
@@ -13,34 +17,45 @@ const AccountPage = () => {
 
     const [activeSection, setActiveSection] = useState("overview");
     const [deleteDialogOpen, setDeleteDialogOpen] = useState(false);
+    const [usedStorage, setUsedStorage] = useState(user ? (user.current_storage / (1024 * 1024)).toFixed(2) : "0.00");
+
+    const handleRecalculateStorage = async () => {
+        const promise = fetch('/api/user/recalculate-storage', {
+            method: 'POST',
+            credentials: 'include',
+        }).then(res => res.json());
+
+        toaster.promise(promise, {
+            success: (data) => {
+                setUsedStorage((data.current_storage / (1024 * 1024)).toFixed(2));
+                return {
+                    title: data.message || 'Storage usage recalculated successfully',
+                };
+            },
+            error: {
+                title: 'Failed to recalculate storage usage',
+            },
+            loading: {
+                title: 'Recalculating storage...',
+            },
+        });
+    };
 
     const renderContent = () => {
         switch (activeSection) {
             case 'overview':
                 return (
-                    <VStack align="flex-start" spacing={6}>
-                        <Heading color="white" size="xl">Account Overview</Heading>
-                        <Text color="gray.400">Email: {user.email}</Text>
-                        <Text color="gray.400">Account Type: {user.admin ? "Administrator" : "Standard User"}</Text>
-                        <Text color="gray.400">Storage Used: { (user.current_storage / (1024 * 1024)).toFixed(2) } MB / { user.admin ? "Unlimited" : (user.max_storage / (1024 * 1024)).toFixed(2) + " MB" }</Text>
-                        <Text color="gray.400">Status: <Span color="green.400">{user.active ? "Active" : "Inactive"}</Span></Text>
-                    </VStack>
+                    <AccountOverviewSection
+                        user={user}
+                        usedStorage={usedStorage}
+                        onRecalculateStorage={handleRecalculateStorage}
+                    />
                 )
+            case 'password':
+                return <ChangePasswordSection />
             case 'delete':
                 return (
-                    <VStack align="flex-start" spacing={6}>
-                        <Heading color="white" size="xl">Delete Account</Heading>
-                        <Alert.Root colorPalette="red" status="warning" variant="solid">
-                            <Alert.Indicator />
-                            <Alert.Content>
-                                <Alert.Title>Action is irreversible</Alert.Title>
-                                <Alert.Description>
-                                    Deleting your account will permanently remove all your data from our servers, including files. This action cannot be undone.
-                                </Alert.Description>
-                            </Alert.Content>
-                        </Alert.Root>
-                        <Button variant="outline" colorPalette={"red"} onClick={() => setDeleteDialogOpen(true)}>Delete My Account</Button>
-                    </VStack>
+                    <DeleteAccountSection onOpenDeleteDialog={() => setDeleteDialogOpen(true)} />
                 )
         }
     }
@@ -70,35 +85,27 @@ const AccountPage = () => {
     }
 
     const confirmDelete = async () => {
-        try {
-            const res = await fetch('/api/user/delete', {
-                method: 'DELETE',
-                credentials: 'include',
-            });
+        const promise = fetch('/api/user/delete', {
+            method: 'DELETE',
+            credentials: 'include',
+        }).then(res => res.json());
 
-            const data = await res.json();
+        toaster.promise(promise, {
+            success: {
+                title: 'Account deleted successfully',
+            },
+            error: {
+                title: 'Failed to delete account',
+            },
+            loading: {
+                title: 'Deleting account...',
+            },
+        });
 
-            if (res.ok) {
-                toaster.create({
-                    title: data.message || 'Account deleted successfully',
-                    type: 'success',
-                    duration: 3000,
-                });
-                setDeleteDialogOpen(false);
-                navigate('/');
-            } else {
-                toaster.create({
-                    title: data.message || 'Failed to delete account',
-                    type: 'error',
-                    duration: 3000,
-                });
-            }
-        } catch {
-            toaster.create({
-                title: 'Server error',
-                type: 'error',
-                duration: 3000,
-            });
+        const data = await promise;
+        if (data.status === 200) {
+            await logout();
+            navigate('/');
         }
     };
 
@@ -109,10 +116,50 @@ const AccountPage = () => {
                 <Heading mb={8} color={"white"} size={"2xl"}>Account Page</Heading>
                 <HStack spacing={8} align="stretch">
                     <Container flex={1}>
-                        <VStack>
-                            <Button w={"100%"} color="white" _hover={{ bg: 'gray.800' }}onClick={() => handleSelect("overview")}>Account Overview</Button>
-                            <Button w={"100%"} color="white" _hover={{ bg: 'gray.800' }} onClick={() => handleSelect("delete")}>Delete Account</Button>
-                            <Button w={"100%"} color="red.300" _hover={{ bg: 'red.800' }} onClick={handleLogout}>Logout</Button>
+                        <VStack align="stretch" spacing={1}>
+                            <Button
+                                w={"100%"}
+                                variant="ghost"
+                                justifyContent="flex-start"
+                                color={activeSection === 'overview' ? 'purple.300' : 'gray.300'}
+                                bg={activeSection === 'overview' ? 'gray.800' : 'transparent'}
+                                _hover={{ bg: 'gray.700', color: 'white' }}
+                                onClick={() => handleSelect("overview")}
+                            >
+                                Account Overview
+                            </Button>
+                            <Button
+                                w={"100%"}
+                                variant="ghost"
+                                justifyContent="flex-start"
+                                color={activeSection === 'password' ? 'purple.300' : 'gray.300'}
+                                bg={activeSection === 'password' ? 'gray.800' : 'transparent'}
+                                _hover={{ bg: 'gray.700', color: 'white' }}
+                                onClick={() => handleSelect("password")}
+                            >
+                                Change Password
+                            </Button>
+                            <Button
+                                w={"100%"}
+                                variant="ghost"
+                                justifyContent="flex-start"
+                                color={activeSection === 'delete' ? 'red.300' : 'gray.300'}
+                                bg={activeSection === 'delete' ? 'gray.800' : 'transparent'}
+                                _hover={{ bg: 'gray.700', color: 'white' }}
+                                onClick={() => handleSelect("delete")}
+                            >
+                                Delete Account
+                            </Button>
+                            <Button
+                                w={"100%"}
+                                variant="ghost"
+                                justifyContent="flex-start"
+                                color="red.300"
+                                _hover={{ bg: 'red.700', color: 'white' }}
+                                onClick={handleLogout}
+                            >
+                                Logout
+                            </Button>
                         </VStack>
                     </Container>
                     <Separator orientation={"vertical"} />
@@ -121,25 +168,11 @@ const AccountPage = () => {
                     </Container>
                 </HStack>
             </Container>
-            <Dialog.Root open={deleteDialogOpen} onOpenChange={(e) => setDeleteDialogOpen(e.open)} zIndex={9999}>
-                <Dialog.Backdrop />
-                <Dialog.Content position="fixed" top="40%" left="50%" transform="translate(-50%, -50%)" maxW="500px" bg="gray.800">
-                    <Dialog.Body>
-                        <VStack spacing={6} align="center" justify="center" py={8}>
-                            <Heading size="lg" color="white" textAlign="center">
-                                Are you really sure you want to delete your account?
-                            </Heading>
-                            <Text color="gray.400" textAlign="center">
-                                This action cannot be undone. All your files and data will be permanently deleted.
-                            </Text>
-                            <HStack spacing={4}>
-                                <Button variant="outline" color="white" _hover={{color: "black"}} onClick={() => setDeleteDialogOpen(false)}>Cancel</Button>
-                                <Button bg="red.600" color="white" onClick={confirmDelete} _hover={{ bg: 'red.500' }}>Delete Account</Button>
-                            </HStack>
-                        </VStack>
-                    </Dialog.Body>
-                </Dialog.Content>
-            </Dialog.Root>
+            <DeleteAccountDialog
+                isOpen={deleteDialogOpen}
+                onClose={() => setDeleteDialogOpen(false)}
+                onConfirmDelete={confirmDelete}
+            />
 
             <Footer />
         </Box>

@@ -9,7 +9,7 @@ const DashboardControls = ({ viewMode, onViewChange, searchQuery, onSearch, onUp
                     <Button
                         bg="purple.600"
                         color="white"
-                        _hover={{ bg: 'purple.500', boxShadow: '0 0 20px rgba(168, 85, 247, 0.6)' }}
+                        _hover={{ bg: 'purple.500' }}
                         onClick={onUpload}
                     >
                         <LuUpload />
@@ -37,7 +37,7 @@ const DashboardControls = ({ viewMode, onViewChange, searchQuery, onSearch, onUp
                             <IconButton
                                 size="sm"
                                 variant={viewMode === 'grid' ? 'solid' : 'ghost'}
-                                colorScheme={viewMode === 'grid' ? 'purple' : 'gray'}
+                                colorPalette={viewMode === 'grid' ? 'purple' : 'gray'}
                                 onClick={() => onViewChange('grid')}
                             >
                                 <LuLayoutGrid />
@@ -45,7 +45,7 @@ const DashboardControls = ({ viewMode, onViewChange, searchQuery, onSearch, onUp
                             <IconButton
                                 size="sm"
                                 variant={viewMode === 'list' ? 'solid' : 'ghost'}
-                                colorScheme={viewMode === 'list' ? 'purple' : 'gray'}
+                                colorPalette={viewMode === 'list' ? 'purple' : 'gray'}
                                 onClick={() => onViewChange('list')}
                             >
                                 <LuList />

@@ -6,6 +6,8 @@ const voteSchema = new mongoose.Schema({
     value: { type: Number, enum: [-1, 1], required: true }
 }, { timestamps: true });
 
+voteSchema.index({ user_id: 1, file_id: 1 }, { unique: true });
+
 const Vote = mongoose.model("Vote", voteSchema);
 
 export default Vote;

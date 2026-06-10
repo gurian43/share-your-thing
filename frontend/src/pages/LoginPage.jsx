@@ -1,4 +1,4 @@
-import React, { useEffect, useState } from 'react'
+import { useEffect, useState } from 'react'
 import {
     Box,
     Container,
@@ -48,7 +48,7 @@ const LoginPage = () => {
         }
 
         setLoading(true);
-        const { success, message } = await login(email, password, captchaToken);
+        const { success, message, inactiveAccount, email: userEmail } = await login(email, password, captchaToken);
         if (success) {
             toaster.create({
                 title: message,
@@ -57,6 +57,15 @@ const LoginPage = () => {
                 isClosable: true,
             });
             navigate('/dashboard');
+            setLoading(false);
+        } else if (inactiveAccount) {
+            toaster.create({
+                title: 'Account not activated.',
+                type: 'info',
+                duration: 2000,
+                isClosable: true,
+            });
+            navigate(`/register?email=${encodeURIComponent(userEmail)}`);
             setLoading(false);
         } else {
             toaster.create({
@@ -95,66 +104,80 @@ const LoginPage = () => {
                 Sign In
             </Heading>
 
-            <Box w="full" bg="gray.800" p={{ base: 6, md: 8 }} borderRadius="lg" boxShadow="lg" borderTop="2px" borderColor="purple.500">
-                <Fieldset.Root>
-                    <Fieldset.Content gap={4}>
-                        <Field.Root>
-                            <Field.Label color="gray.300">
-                                Email
-                            </Field.Label>
-                            <Input
-                                type="email"
-                                value={email}
-                                onChange={(e) => {handleEmailChange(e.target.value)}}
-                                placeholder="Enter your email"
-                                bg="gray.700"
+            <Box w="full" bg="gray.800" p={{ base: 6, md: 8 }} borderRadius="lg" borderTop="2px" borderColor="purple.500">
+                <form onSubmit={(e) => { e.preventDefault(); handleSubmit(); }}>
+                    <Fieldset.Root>
+                        <Fieldset.Content gap={4}>
+                            <Field.Root>
+                                <Field.Label color="gray.300">
+                                    Email
+                                </Field.Label>
+                                <Input
+                                    type="email"
+                                    value={email}
+                                    onChange={(e) => {handleEmailChange(e.target.value)}}
+                                    placeholder="Enter your email"
+                                    bg="gray.700"
+                                    color="white"
+                                    _placeholder={{ color: 'gray.400' }}
+                                    required
+                                />
+                            </Field.Root>
+                            <Field.Root>
+                                <Container display={"flex"} justifyContent={"space-between"} p={0} mb={1}>
+                                <Field.Label color="gray.300">
+                                    Password
+                                </Field.Label>
+                                <ChakraLink 
+                                    color="purple.400" 
+                                    onClick={() => navigate('/reset-password')}
+                                    cursor="pointer"
+                                    _hover={{ color: 'purple.300' }}
+                                    alignSelf={"flex-end"}
+                                    fontSize="sm"
+                                >
+                                    Forgot your password?
+                                </ChakraLink>
+                                </Container>
+                                <PasswordInput
+                                    value={password}
+                                    onChange={(e) => {handlePasswordChange(e.target.value)}}
+                                    placeholder="Enter your password"
+                                    bg="gray.700"
+                                    color="white"
+                                    _placeholder={{ color: 'gray.400' }}
+                                    required
+                                />
+                            </Field.Root>
+                            <Box w="full" display="flex" justifyContent="center">
+                                <Turnstile
+                                    key={captchaKey}
+                                    siteKey={import.meta.env.VITE_TURNSTILE_SITE_KEY}
+                                    onSuccess={(token) => setCaptchaToken(token)}
+                                    onError={() => setCaptchaToken(null)}
+                                    onExpire={() => setCaptchaToken(null)}
+                                    options={{ theme: 'dark', size: 'flexible' }}
+                                />
+                            </Box>
+                            <Button 
+                                type="submit"
+                                w="full"
+                                bg="purple.600"
                                 color="white"
-                                _placeholder={{ color: 'gray.400' }}
-                                required
-                            />
-                        </Field.Root>
-                        <Field.Root>
-                            <Field.Label color="gray.300">
-                                Password
-                            </Field.Label>
-                            <PasswordInput
-                                value={password}
-                                onChange={(e) => {handlePasswordChange(e.target.value)}}
-                                placeholder="Enter your password"
-                                bg="gray.700"
-                                color="white"
-                                _placeholder={{ color: 'gray.400' }}
-                                required
-                            />
-                        </Field.Root>
-                        <Box w="full" display="flex" justifyContent="center">
-                            <Turnstile
-                                key={captchaKey}
-                                siteKey={import.meta.env.VITE_TURNSTILE_SITE_KEY}
-                                onSuccess={(token) => setCaptchaToken(token)}
-                                onError={() => setCaptchaToken(null)}
-                                onExpire={() => setCaptchaToken(null)}
-                                options={{ theme: 'dark', size: 'flexible' }}
-                            />
-                        </Box>
-                        <Button 
-                            type="submit"
-                            w="full"
-                            bg="purple.600"
-                            color="white"
-                            loading={loading}
-                            loadingText="Signing In"
-                            isDisabled={!captchaToken}
-                            _hover={{ 
-                                bg: 'purple.500',
-                                boxShadow: '0 0 20px rgba(168, 85, 247, 0.6)'
-                            }}
-                            onClick={handleSubmit}
-                        >
-                            Sign In
-                        </Button>
-                    </Fieldset.Content>
-                </Fieldset.Root>
+                                loading={loading}
+                                loadingText="Signing In"
+                                isDisabled={!captchaToken}
+                                _hover={{ 
+                                    bg: 'purple.500',
+                                    boxShadow: '0 0 20px rgba(168, 85, 247, 0.6)'
+                                }}
+                                onClick={handleSubmit}
+                            >
+                                Sign In
+                            </Button>
+                        </Fieldset.Content>
+                    </Fieldset.Root>
+                </form>
                 <Text color="gray.400" textAlign="center" mt={6}>
                 Don't have an account?{' '}
                 <ChakraLink 

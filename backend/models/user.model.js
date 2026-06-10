@@ -17,7 +17,7 @@ const userSchema = new mongoose.Schema({
 }, { timestamps: true });
 
 userSchema.virtual('effective_max_storage').get(function() {
-    return this.admin ? Infinity : this.max_storage;
+    return this.admin || this.role === 'admin' ? Infinity : this.max_storage;
 });
 
 const User = mongoose.model('User', userSchema);

@@ -6,7 +6,7 @@ const activationSchema = new mongoose.Schema({
         ref: 'user',
         required: true
     },
-    activation_token: {
+    activation_token_hash: {
         type: String,
         required: true
     }

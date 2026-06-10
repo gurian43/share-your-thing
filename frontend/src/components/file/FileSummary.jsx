@@ -1,7 +1,10 @@
 import { Badge, Box, Card, HStack, Heading, IconButton, VStack } from '@chakra-ui/react'
-import { LuShare2, LuFile, LuFileText, LuFileImage, LuFileVideo, LuFileAudio, LuFileArchive, LuFileSpreadsheet } from 'react-icons/lu'
+import { LuThumbsDown, LuThumbsUp, LuShare2, LuFlag, LuFile, LuFileText, LuFileImage, LuFileVideo, LuFileAudio, LuFileArchive, LuFileSpreadsheet } from 'react-icons/lu'
 
-const FileSummary = ({ file, onShare }) => {
+const FileSummary = ({ file, onShare, onReport, onUpvote, onDownvote, userVote = 0, isVoteSubmitting = false, isOwnFile = false }) => {
+    const score = Number(file?.score || 0)
+    const scorePalette = score > 0 ? 'green' : score < 0 ? 'red' : 'gray'
+
     return (
         <Card.Root bg="gray.800" borderColor="gray.700">
             <Card.Body>
@@ -14,23 +17,60 @@ const FileSummary = ({ file, onShare }) => {
                             {file.file_name}
                         </Heading>
                         <HStack spacing={2} flexWrap="wrap">
-                            <Badge colorScheme="purple" textTransform="uppercase">
-                                {getFileExtension(file.file_name)}
+                            <Badge colorPalette="purple" textTransform="uppercase">
+                                {getFileExtension(file.original_file_name || file.file_name)}
                             </Badge>
-                            <Badge colorScheme={getVisibilityColor(file.visibility)} textTransform="capitalize">
+                            <Badge colorPalette={getVisibilityColor(file.visibility)} textTransform="capitalize">
                                 {file.visibility}
                             </Badge>
+                            <Badge colorPalette={scorePalette}>
+                                Score: {score > 0 ? `+${score}` : score}
+                            </Badge>
                             {file.password && (
-                                <Badge colorScheme="orange">
+                                <Badge colorPalette="orange">
                                     Password Protected
                                 </Badge>
                             )}
                         </HStack>
                     </VStack>
                     <HStack spacing={2} flexWrap="wrap">
+                        {!isOwnFile && (
+                            <>
+                                <IconButton
+                                    variant="outline"
+                                    colorPalette={userVote === 1 ? 'green' : 'gray'}
+                                    onClick={onUpvote}
+                                    disabled={isVoteSubmitting}
+                                    _hover={{ bg: userVote === 1 ? 'green.600' : 'gray.700' }}
+                                    aria-label="Upvote"
+                                >
+                                    <LuThumbsUp size={20} color='white' />
+                                </IconButton>
+                                <IconButton
+                                    variant="outline"
+                                    colorPalette={userVote === -1 ? 'red' : 'gray'}
+                                    onClick={onDownvote}
+                                    disabled={isVoteSubmitting}
+                                    _hover={{ bg: userVote === -1 ? 'red.600' : 'gray.700' }}
+                                    aria-label="Downvote"
+                                >
+                                    <LuThumbsDown size={20} color='white' />
+                                </IconButton>
+                            </>
+                        )}
+                        {onReport && (
+                            <IconButton
+                                variant="outline"
+                                colorPalette="red"
+                                onClick={onReport}
+                                _hover={{ bg: 'red.600' }}
+                            >
+                                <LuFlag size={20} color='white' />
+                            </IconButton>
+                        )}
                         <IconButton
                             variant="outline"
-                            colorScheme="purple"
+                            colorPalette="purple"
                             onClick={onShare}
                             _hover={{ bg: 'purple.600' }}
                         >
@@ -41,12 +81,6 @@ const FileSummary = ({ file, onShare }) => {
             </Card.Body>
         </Card.Root>
     )
-}
-
-const getFileExtension = (fileName) => {
-    if (!fileName) return ''
-    const parts = fileName.split('.')
-    return parts.length > 1 ? parts.pop().toLowerCase() : fileName.toLowerCase()
 }
 
 const getFileIcon = (fileName, size = 24) => {
@@ -90,6 +124,12 @@ const getFileIcon = (fileName, size = 24) => {
         default:
             return <LuFile {...iconProps} />
     }
+}
+
+const getFileExtension = (fileName) => {
+    if (!fileName) return ''
+    const parts = fileName.split('.')
+    return parts.length > 1 ? parts.pop().toLowerCase() : fileName.toLowerCase()
 }
 
 const getVisibilityColor = (visibility) => {

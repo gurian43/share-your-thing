@@ -1,6 +1,7 @@
 # Share Your Thing
 
 A full-stack file sharing web application built with Express.js and React.
+This is a school project.
 
 ## Prerequisites
 
@@ -51,6 +52,8 @@ CORS_ORIGIN=http://localhost:3000
 VITE_TURNSTILE_SITE_KEY=your_turnstile_site_key
 ```
 
+Alternatively, copy `frontend/.env.example` into `frontend/.env`.
+
 ## Development
 
 Run the backend development server:
@@ -66,24 +69,67 @@ npm run dev
 
 The backend will run on `http://localhost:3000` and the frontend on `http://localhost:5173`.
 
-## Building for Production*
-**This will later be replaced with docker*
+## Docker (production) — quick guide
 
-Build both frontend and backend:
+This repo includes a multi-stage `backend/Dockerfile` that builds the frontend and packages it into the backend image, and a `docker-compose.yml` to run MongoDB + backend.
+
+1) Prepare host folders and env files
+
 ```bash
-npm run build
+mkdir -p uploads data/db
 ```
 
-This will:
-1. Install all dependencies
-2. Install frontend dependencies
-3. Build the frontend for production
+Create a root `.env` file with the same structure shown above in this README. For production, set at least:
 
-## Production Deployment
-
-Run the production server:
-```bash
-npm start
+```env
+NODE_ENV=production
+PORT=3003
+MONGODB_URI=your_mongodb_connection_string
+SESSION_SECRET=your_secure_session_secret
+ENCRYPTION_KEY=your_32_byte_secret
+CORS_ORIGIN=http://localhost:3000
+TURNSTILE_SECRET_KEY=your_turnstile_secret_key
+EMAIL_USER=your_email@example.com
+EMAIL_PASS=your_email_password
 ```
 
-The server will serve the built frontend files and run the API on the configured PORT.
+Create `frontend/.env` with your Vite Turnstile site key:
+
+```env
+VITE_TURNSTILE_SITE_KEY=your_turnstile_site_key
+```
+
+2) Build and start with docker-compose
+
+If you only changed backend code or the Dockerfile, target the backend service only:
+
+```bash
+docker compose build --no-cache backend
+docker compose up -d backend
+```
+
+If you want to rebuild everything, omit the service name:
+
+```bash
+docker compose build --no-cache
+docker compose up -d
+```
+
+By default the compose file maps `127.0.0.1:3003` on the host to the backend container port `3003`. Keep your nginx/cloudflared ingress proxying to `http://127.0.0.1:3003` (your existing setup uses that).
+
+3) Nginx recommendations for chunked uploads
+
+In your nginx site config, ensure these settings to support streaming uploads and larger files:
+
+```
+client_max_body_size 200M;
+proxy_request_buffering off;
+proxy_read_timeout 300s;
+proxy_send_timeout 300s;
+```
+
+4) Notes
+
+- The Docker build copies `frontend/dist` into `backend/frontend/dist` so Express will serve static files when `NODE_ENV=production`.
+- Store secrets (`ENCRYPTION_KEY`, `SESSION_SECRET`) securely — prefer Docker secrets or a secret manager.
+- `uploads/` and `data/db/` are mounted host volumes for persistence. `.gitignore` already ignores `uploads/` and `data/db/`.

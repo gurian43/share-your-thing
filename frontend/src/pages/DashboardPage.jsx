@@ -10,8 +10,8 @@ import FileEmptyState from '../components/dashboard/FileEmptyState'
 import FileGrid from '../components/dashboard/FileGrid'
 import FileList from '../components/dashboard/FileList'
 import UploadDialog from '../components/dashboard/UploadDialog'
-import ShareDialog from '../components/dashboard/ShareDialog'
 import DeleteDialog from '../components/dashboard/DeleteDialog'
+import EditFileDialog from '../components/dashboard/EditFileDialog'
 import { toaster } from '../components/ui/toaster'
 import { formatBytes, getFileType } from '../utils/fileUtils'
 
@@ -32,12 +32,14 @@ const DashboardPage = () => {
     })
     const [loading, setLoading] = useState(true)
     const [uploadDialogOpen, setUploadDialogOpen] = useState(false)
-    const [shareDialogOpen, setShareDialogOpen] = useState(false)
-    const [shareDialogFile, setShareDialogFile] = useState(null)
     const [deleteDialogOpen, setDeleteDialogOpen] = useState(false)
     const [deleteDialogFile, setDeleteDialogFile] = useState(null)
+    const [editDialogOpen, setEditDialogOpen] = useState(false)
+    const [editDialogFile, setEditDialogFile] = useState(null)
+    const minimumLoadingMs = 400
 
     const loadDashboard = async () => {
+        const startedAt = Date.now()
         setLoading(true)
         try {
             const userRes = await fetch('/api/user/me', {
@@ -62,6 +64,8 @@ const DashboardPage = () => {
                     shared: file.visibility !== 'private',
                     visibility: file.visibility,
                     shared_with_count: file.shared_with_count || 0,
+                    shared_with_emails: file.shared_with_emails || [],
+                    active: file.active,
                 }))
 
                 const totalStorageBytes = userData.user.max_storage
@@ -72,7 +76,7 @@ const DashboardPage = () => {
 
                 setFiles(formattedFiles)
                 setFilteredFiles(formattedFiles)
-                const isAdmin = userData.user.admin
+                const isAdmin = userData.user.role === 'admin'
                 setStats({
                     totalStorage: isAdmin ? 'Unlimited' : formatBytes(totalStorageBytes),
                     usedStorage: formatBytes(usedStorageBytes),
@@ -102,6 +106,10 @@ const DashboardPage = () => {
                 isAdmin: false,
             })
         } finally {
+            const elapsed = Date.now() - startedAt
+            if (elapsed < minimumLoadingMs) {
+                await new Promise((resolve) => setTimeout(resolve, minimumLoadingMs - elapsed))
+            }
             setLoading(false)
         }
     }
@@ -121,6 +129,11 @@ const DashboardPage = () => {
     const handleDelete = (file) => {
         setDeleteDialogFile(file)
         setDeleteDialogOpen(true)
+    }
+
+    const handleEdit = (file) => {
+        setEditDialogFile(file)
+        setEditDialogOpen(true)
     }
 
     const confirmDelete = async () => {
@@ -169,17 +182,36 @@ const DashboardPage = () => {
         })
     }
 
-    const handleShare = (file) => {
-        setShareDialogFile(file)
-        setShareDialogOpen(true)
+    const handleShare = async (file) => {
+        const shareLink = `${window.location.origin}/file/${file.id}`
+        try {
+            await navigator.clipboard.writeText(shareLink)
+            toaster.create({
+                title: 'Share link copied to clipboard!',
+                type: 'success',
+                duration: 3000,
+            })
+        } catch {
+            toaster.create({
+                title: 'Could not copy share link.',
+                type: 'error',
+                duration: 3000,
+            })
+        }
     }
 
-    const handleOpenFile = (file) => navigate(`/file/${file.id}`)
+    const handleOpenFile = (file) => navigate(`/file/${file.id}?from=dashboard`, { state: { from: 'dashboard' } })
+
+    const handleDownload = (file) => {
+        navigate(`/file/${file.id}?from=dashboard`, { state: { autoDownload: true, from: 'dashboard' } })
+    }
 
     const hasResults = filteredFiles.length > 0
     const emptyMessage = searchQuery
         ? 'No files match your search yet.'
-        : 'Upload your first file to get started. You have 5 GB of storage available.'
+        : stats.isAdmin
+            ? 'Upload your first file to get started. You have unlimited storage available.'
+            : 'Upload your first file to get started.'
 
     return (
         <Box minH="100vh" bg="gray.900" display="flex" flexDirection="column" overflowX="hidden">
@@ -206,6 +238,8 @@ const DashboardPage = () => {
                                 onOpenFile={handleOpenFile}
                                 onShare={handleShare}
                                 onDelete={handleDelete}
+                                onDownload={handleDownload}
+                                onEdit={handleEdit}
                             />
                         ) : (
                             <FileList
@@ -213,6 +247,8 @@ const DashboardPage = () => {
                                 onOpenFile={handleOpenFile}
                                 onShare={handleShare}
                                 onDelete={handleDelete}
+                                onDownload={handleDownload}
+                                onEdit={handleEdit}
                             />
                         )
                     ) : (
@@ -226,7 +262,48 @@ const DashboardPage = () => {
                 onClose={() => setUploadDialogOpen(false)}
                 onUploaded={() => loadDashboard()}
             />
-            <ShareDialog isOpen={shareDialogOpen} file={shareDialogFile} onClose={() => setShareDialogOpen(false)} />
+            {editDialogOpen && (
+                <EditFileDialog
+                    isOpen={editDialogOpen}
+                    file={editDialogFile}
+                    onClose={() => setEditDialogOpen(false)}
+                    onSaved={(updated) => {
+                        const isShared =
+                            (updated.shared_with_count ?? (Array.isArray(updated.shared_with_emails) ? updated.shared_with_emails.length : 0)) > 0 ||
+                            updated.visibility === 'public' ||
+                            updated.visibility === 'unlisted'
+
+                        const updateFile = (f) => {
+                            if (f.id !== updated.id) return f
+                            return {
+                                ...f,
+                                name: updated.file_name || f.name,
+                                description: updated.description || f.description,
+                                max_downloads: updated.max_downloads || f.max_downloads,
+                                expires_at: updated.expires_at || f.expires_at,
+                                visibility: updated.visibility || f.visibility,
+                                shared_with_count: updated.shared_with_count ?? f.shared_with_count,
+                                shared_with_emails: updated.shared_with_emails || f.shared_with_emails,
+                                shared: isShared,
+                            }
+                        }
+
+                        setFiles((prev) => prev.map(updateFile))
+                        setFilteredFiles((prev) => prev.map(updateFile))
+                        setStats((prevStats) => {
+                            const nextFiles = files.map(updateFile)
+                            const sharedCount = nextFiles.filter(
+                                (f) => f.shared_with_count > 0 || f.visibility === 'public' || f.visibility === 'unlisted'
+                            ).length
+
+                            return {
+                                ...prevStats,
+                                sharedCount,
+                            }
+                        })
+                    }}
+                />
+            )}
             <DeleteDialog
                 isOpen={deleteDialogOpen}
                 file={deleteDialogFile}

@@ -41,6 +41,9 @@ Thumbs.db
 *.bson
 *.mongodb
 
+# Local mongo data
+data/db/
+
 # Caches
 .npm/
 .eslintcache

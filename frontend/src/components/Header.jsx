@@ -12,6 +12,7 @@ const Header = ({variant}) => {
     const location = useLocation()
     const { user, logout, loading } = useAuth()
     const isMobile = useBreakpointValue({ base: true, md: false })
+    const isAdmin = Boolean(user?.admin || user?.role === 'admin')
 
     const handleLogout = async () => {
         const {success, message} = await logout()
@@ -46,6 +47,25 @@ const Header = ({variant}) => {
         else if (value === 'browse') navigate('/browse')
     }
 
+    const sharedTabsProps = {
+        variant: 'enclosed',
+        colorPalette: 'purple',
+        maxW: '100%',
+    }
+
+    const sharedTabListProps = {
+        display: 'flex',
+        flexWrap: 'wrap',
+        gap: 1,
+    }
+
+    const sharedTabTriggerProps = {
+        color: 'white',
+        px: 4,
+        py: 2,
+        _selected: { bg: 'purple.600' },
+    }
+
     let navContent = null
     let userContent = null
     
@@ -68,11 +88,15 @@ const Header = ({variant}) => {
                         </Portal>
                     </Menu.Root>
                 ) : (
-                    <Tabs.Root value={getCurrentPage()} onValueChange={(details) => handleNavigation(details.value)} colorPalette="purple" maxW="100%">
-                        <Tabs.List display="flex" flexWrap="wrap">
-                            <Tabs.Trigger value="home" color="white">Home</Tabs.Trigger>
-                            <Tabs.Trigger value="dashboard" color="white">Dashboard</Tabs.Trigger>
-                            <Tabs.Trigger value="browse" color="white">Browse</Tabs.Trigger>
+                    <Tabs.Root
+                        {...sharedTabsProps}
+                        value={getCurrentPage()}
+                        onValueChange={(details) => handleNavigation(details.value)}
+                    >
+                        <Tabs.List {...sharedTabListProps}>
+                            <Tabs.Trigger value="home" {...sharedTabTriggerProps}>Home</Tabs.Trigger>
+                            <Tabs.Trigger value="dashboard" {...sharedTabTriggerProps}>Dashboard</Tabs.Trigger>
+                            <Tabs.Trigger value="browse" {...sharedTabTriggerProps}>Browse</Tabs.Trigger>
                         </Tabs.List>
                     </Tabs.Root>
                 )
@@ -83,7 +107,7 @@ const Header = ({variant}) => {
                         <AvatarGroup size='sm' max={3} cursor={"pointer"}>
                             <Avatar.Root colorPalette={"purple"}>
                                 <Avatar.Fallback name={user.username} />
-                                <Avatar.Image src={user.avatarUrl} alt={user.username || "User Avatar"} />
+                                <Avatar.Image src={user.profile?.avatar_url || user.avatarUrl} alt={user.username || "User Avatar"} />
                             </Avatar.Root>
                         </AvatarGroup>
                     </Menu.Trigger>
@@ -94,7 +118,7 @@ const Header = ({variant}) => {
                                     value="profile"
                                     color="white"
                                     cursor="pointer"
-                                    onClick={() => navigate('/profile/' + user._id)}
+                                    onClick={() => navigate('/profile')}
                                     _hover={{ bg: 'gray.700' }}
                                 >
                                     Profile
@@ -108,6 +132,17 @@ const Header = ({variant}) => {
                                 >
                                     Account Settings
                                 </Menu.Item>
+                                {isAdmin && (
+                                    <Menu.Item 
+                                        value="admin"
+                                        color="white"
+                                        cursor="pointer"
+                                        onClick={() => navigate('/admin')}
+                                        _hover={{ bg: 'gray.700' }}
+                                    >
+                                        Admin
+                                    </Menu.Item>
+                                )}
                                 <Menu.Item 
                                     value="logout"
                                     onClick={handleLogout}
@@ -125,11 +160,14 @@ const Header = ({variant}) => {
         } else {
             navContent = (
                 isMobile ? null : (
-                    <Tabs.Root value={getCurrentPage()} onValueChange={(details) => handleNavigation(details.value)} colorPalette="purple" maxW="100%">
-                        <Tabs.List display="flex" flexWrap="wrap">
-                            <Tabs.Trigger value="home" color="white">Home</Tabs.Trigger>
-                            <Tabs.Trigger value="dashboard" disabled color="white">Dashboard</Tabs.Trigger>
-                            <Tabs.Trigger value="browse" color="white">Browse</Tabs.Trigger>
+                    <Tabs.Root
+                        {...sharedTabsProps}
+                        value={getCurrentPage()}
+                        onValueChange={(details) => handleNavigation(details.value)}
+                    >
+                        <Tabs.List {...sharedTabListProps}>
+                            <Tabs.Trigger value="home" {...sharedTabTriggerProps}>Home</Tabs.Trigger>
+                            <Tabs.Trigger value="browse" {...sharedTabTriggerProps}>Browse</Tabs.Trigger>
                         </Tabs.List>
                     </Tabs.Root>
                 )
@@ -141,7 +179,8 @@ const Header = ({variant}) => {
                         colorScheme="purple" 
                         variant="outline" 
                         size={{ base: 'sm', md: 'md' }}
-                        _hover={{ bg: 'purple.700', boxShadow: '0 0 20px rgba(168, 85, 247, 0.5)' }}
+                        borderColor="gray.600"
+                        _hover={{ bg: 'gray.600', color: 'white' }}
                         onClick={() => navigate('/login')}
                     >
                         Sign In

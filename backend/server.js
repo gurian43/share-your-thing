@@ -8,11 +8,18 @@ import path from 'path';
 
 import connectToDatabase from './config/db.js';
 import { createTransporter } from './services/emailService.js';
+import { startCleanupService } from './services/cleanupService.js';
+import { limiter } from './services/rateLimiter.js';
 
 import userRoutes from './routes/user.route.js';
 import fileRoutes from './routes/file.route.js';
+import adminRoutes from './routes/admin.route.js';
 
 dotenv.config();
+
+const APP_ENV = process.env.NODE_ENV || process.env.MODE || 'development';
+
+const IS_PRODUCTION = APP_ENV === 'production';
 
 const __dirname = path.resolve();
 
@@ -31,7 +38,11 @@ app.use(helmet({
         useDefaults: true,
         directives: {
             "default-src": ["'self'"],
-            "script-src": ["'self'", "https://challenges.cloudflare.com"],
+            "script-src": [
+                "'self'", 
+                "https://challenges.cloudflare.com", 
+                "'wasm-unsafe-eval'"
+            ],
             "frame-src": ["'self'", "https://challenges.cloudflare.com"],
             "style-src": ["'self'", "'unsafe-inline'"],
             "font-src": ["'self'", "data:", "https://challenges.cloudflare.com"],
@@ -40,8 +51,8 @@ app.use(helmet({
         }
     }
 }));
-app.use(express.urlencoded({ extended: true }));
-app.use(express.json());
+app.use(express.urlencoded({ extended: true, limit: '5mb' }));
+app.use(express.json({ limit: '5mb' }));
 
 app.use(session({
     secret: process.env.SESSION_SECRET,
@@ -63,15 +74,19 @@ app.use(session({
     }
 }));
 
+app.use(limiter);
+
 app.use('/api/user', userRoutes);
 app.use('/api/file', fileRoutes);
+app.use('/api/admin', adminRoutes);
 
 app.listen(PORT, () => {
     connectToDatabase();
+    startCleanupService();
     console.log(`Server is running on port ${PORT}`);
 });
 
-if (process.env.MODE === 'production') {
+if (IS_PRODUCTION) {
     app.use(express.static(path.resolve(__dirname, 'frontend', 'dist')));
 
     app.get(/^(?!\/api\/)..*/, (req, res) => {
@@ -79,7 +94,7 @@ if (process.env.MODE === 'production') {
     });
 } else {
     app.get("/", (req, res) => {
-        res.send(`API is running... in development mode PORT ${PORT} | <a href="http://localhost:5173">http://localhost:5173</a>`);
+        res.send(`API is running... in ${APP_ENV} mode PORT ${PORT} | <a href="http://localhost:5173">http://localhost:5173</a>`);
     });
 }
 
