@@ -74,7 +74,7 @@ const Header = ({variant}) => {
             navContent = (
                 isMobile ? (
                     <Menu.Root>
-                        <Menu.Trigger>
+                        <Menu.Trigger asChild>
                             <Button variant="subtle" colorScheme="purple">Menu</Button>
                         </Menu.Trigger>
                         <Portal>
@@ -103,13 +103,15 @@ const Header = ({variant}) => {
             )
             userContent = (
                 <Menu.Root>
-                    <Menu.Trigger rounded={"full"} focusRing={"outside"}>
-                        <AvatarGroup size='sm' max={3} cursor={"pointer"}>
-                            <Avatar.Root colorPalette={"purple"}>
-                                <Avatar.Fallback name={user.username} />
-                                <Avatar.Image src={user.profile?.avatar_url || user.avatarUrl} alt={user.username || "User Avatar"} />
-                            </Avatar.Root>
-                        </AvatarGroup>
+                    <Menu.Trigger asChild rounded={"full"} focusRing={"outside"}>
+                        <Box cursor="pointer">
+                            <AvatarGroup size='sm' max={3}>
+                                <Avatar.Root colorPalette={"purple"}>
+                                    <Avatar.Fallback name={user.username} />
+                                    <Avatar.Image src={user.profile?.avatar_url || user.avatarUrl} alt={user.username || "User Avatar"} />
+                                </Avatar.Root>
+                            </AvatarGroup>
+                        </Box>
                     </Menu.Trigger>
                     <Portal>
                         <Menu.Positioner>

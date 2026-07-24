@@ -3,6 +3,7 @@ import Activation from '../models/activation.model.js';
 import File from '../models/file.model.js';
 import Vote from '../models/vote.model.js';
 import Pwdreset from '../models/pwdreset.model.js';
+import SiteSetting, { DEFAULT_SITE_SETTINGS } from '../models/siteSetting.model.js';
 import Bcrypt from 'bcrypt';
 import crypto from 'crypto';
 import { verifyCaptcha } from '../services/turnstile.js';
@@ -46,6 +47,20 @@ export const registerUser = async (req, res) => {
     try {
         if(!req.body.password || !req.body.email || !req.body.username) {
             return res.status(400).json({ status: 400, message: 'Missing required fields' });
+        }
+
+        const siteSettings = await SiteSetting.findOne().lean();
+        const isRegistrationAllowed = siteSettings?.allowUserRegistrations ?? DEFAULT_SITE_SETTINGS.allowUserRegistrations;
+        const requester = req.session?.userId
+            ? await User.findById(req.session.userId).select('_id admin role').lean()
+            : null;
+        const isAdminBypass = requester?.admin || requester?.role === 'admin';
+
+        if (!isRegistrationAllowed && !isAdminBypass) {
+            return res.status(403).json({
+                status: 403,
+                message: 'New user registrations are currently disabled by the site administrator.',
+            });
         }
 
         if(APP_ENV !== "development") {

@@ -1,6 +1,7 @@
 import File from '../models/file.model.js';
 import User from '../models/user.model.js';
 import Vote from '../models/vote.model.js';
+import SiteSetting, { DEFAULT_SITE_SETTINGS } from '../models/siteSetting.model.js';
 import fs from 'fs';
 import path from 'path';
 import Bcrypt from 'bcrypt';
@@ -31,6 +32,8 @@ const getVoteSummary = async (fileId, userId) => {
 };
 
 const normalizeEmail = (email) => String(email || '').trim().toLowerCase();
+
+const isAdminUser = (user) => Boolean(user?.admin || user?.role === 'admin');
 
 const validateUploadFileName = (rawName) => {
     const name = String(rawName || '').trim();
@@ -290,6 +293,20 @@ export const downloadFile = async (req, res) => {
             return res.status(400).json({ status: 400, message: 'File ID is required' });
         }
 
+        const requester = req.session?.userId
+            ? await User.findById(req.session.userId).select('_id admin role').lean()
+            : null;
+        const siteSettings = await SiteSetting.findOne().lean();
+        const isDownloadsAllowed = siteSettings?.allowUserDownloads ?? DEFAULT_SITE_SETTINGS.allowUserDownloads;
+        const isAdminBypass = requester?.admin || requester?.role === 'admin';
+
+        if (!isDownloadsAllowed && !isAdminBypass) {
+            return res.status(403).json({
+                status: 403,
+                message: 'File downloads are currently disabled by the site administrator.',
+            });
+        }
+
         const file = await File.findById(fileId);
 
         if (!file) {
@@ -471,6 +488,16 @@ export const uploadChunk = async (req, res) => {
             return res.status(404).json({ status: 404, message: 'User not found' });
         }
 
+        const siteSettings = await SiteSetting.findOne().lean();
+        const isUploadsAllowed = siteSettings?.allowUserUploads ?? DEFAULT_SITE_SETTINGS.allowUserUploads;
+        if (!isUploadsAllowed && !isAdminUser(user)) {
+            await fs.promises.unlink(req.file.path).catch(() => {});
+            return res.status(403).json({
+                status: 403,
+                message: 'File uploads are currently disabled by the site administrator.',
+            });
+        }
+
         if (!uploadId || chunkIndex === undefined || !totalChunks || !fileName) {
             await fs.promises.unlink(req.file.path).catch(() => {});
             logWarn('uploadChunk', 'Missing required fields for chunk upload');
@@ -566,6 +593,15 @@ export const finalizeUpload = async (req, res) => {
 
         if (!user) {
             return res.status(404).json({ status: 404, message: 'User not found' });
+        }
+
+        const siteSettings = await SiteSetting.findOne().lean();
+        const isUploadsAllowed = siteSettings?.allowUserUploads ?? DEFAULT_SITE_SETTINGS.allowUserUploads;
+        if (!isUploadsAllowed && !isAdminUser(user)) {
+            return res.status(403).json({
+                status: 403,
+                message: 'File uploads are currently disabled by the site administrator.',
+            });
         }
 
         if (!uploadId || !fileName || !totalChunks || !checksum) {
