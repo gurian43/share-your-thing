@@ -1,10 +1,17 @@
 import File from '../models/file.model.js';
 import User from '../models/user.model.js';
 import Vote from '../models/vote.model.js';
+import SiteSetting, { DEFAULT_SITE_SETTINGS } from '../models/siteSetting.model.js';
 import fs from 'fs';
 import path from 'path';
 import Bcrypt from 'bcrypt';
 import { encryptFile, createDecipherStream } from '../services/encryptionService.js';
+
+const logInfo = (fn, msg) => console.log(`[${fn}] ${msg}`);
+const logWarn = (fn, msg) => console.warn(`[${fn}] ${msg}`);
+const logError = (fn, err, extra = '') => {
+    console.error(`[${fn}] ${extra}`.trim(), err);
+};
 
 const getVoteSummary = async (fileId, userId) => {
     const [upvotes, downvotes] = await Promise.all([
@@ -25,6 +32,8 @@ const getVoteSummary = async (fileId, userId) => {
 };
 
 const normalizeEmail = (email) => String(email || '').trim().toLowerCase();
+
+const isAdminUser = (user) => Boolean(user?.admin || user?.role === 'admin');
 
 const validateUploadFileName = (rawName) => {
     const name = String(rawName || '').trim();
@@ -112,7 +121,7 @@ export const getFileById = async (req, res) => {
 
         return res.status(200).json({ status: 200, file: fileData });
     } catch (err) {
-        console.error('Error fetching file:', err);
+        logError('getFileById', err, 'Error fetching file:');
         return res.status(500).json({ status: 500, message: 'Internal server error' });
     }
 };
@@ -131,7 +140,7 @@ export const getUserFiles = async (req, res) => {
 
         return res.status(200).json({ status: 200, files: filesWithShareMeta });
     } catch (err) {
-        console.error('Error fetching user files:', err);
+        logError('getUserFiles', err, 'Error fetching user files:');
         return res.status(500).json({ status: 500, message: 'Internal server error' });
     }
 };
@@ -141,6 +150,7 @@ export const updateFileShareSettings = async (req, res) => {
         const { fileId } = req.params;
         const userId = req.session.userId;
         const { visibility, sharedWithEmails = [] } = req.body || {};
+        logInfo('updateFileShareSettings', `Request received fileId=${fileId}, userId=${userId || 'none'}, visibility=${visibility}`);
 
         if (!fileId) {
             return res.status(400).json({ status: 400, message: 'File ID is required' });
@@ -148,10 +158,12 @@ export const updateFileShareSettings = async (req, res) => {
 
         const allowedVisibility = ['private', 'unlisted', 'public'];
         if (!allowedVisibility.includes(visibility)) {
+            logWarn('updateFileShareSettings', `Invalid visibility value: ${visibility}`);
             return res.status(400).json({ status: 400, message: 'Invalid visibility value' });
         }
 
         if (!Array.isArray(sharedWithEmails)) {
+            logWarn('updateFileShareSettings', 'sharedWithEmails must be an array');
             return res.status(400).json({ status: 400, message: 'sharedWithEmails must be an array' });
         }
 
@@ -202,6 +214,7 @@ export const updateFileShareSettings = async (req, res) => {
         file.shared_with = visibility === 'private' ? sharedWithUserIds : [];
         file.shared_with_emails = visibility === 'private' ? normalizedEmails : [];
         await file.save();
+        logInfo('updateFileShareSettings', `Updated fileId=${fileId} visibility=${visibility}`);
 
         const populatedFile = await File.findById(file._id)
             .select('_id visibility shared_with_emails')
@@ -222,7 +235,7 @@ export const updateFileShareSettings = async (req, res) => {
             },
         });
     } catch (err) {
-        console.error('Error updating share settings:', err);
+        logError('updateFileShareSettings', err, 'Error updating share settings:');
         return res.status(500).json({ status: 500, message: 'Internal server error' });
     }
 };
@@ -230,6 +243,7 @@ export const updateFileShareSettings = async (req, res) => {
 export const deleteFile = async (req, res) => {
     try {
         const { fileId } = req.params;
+        logInfo('deleteFile', `Request received fileId=${fileId}, sessionUserId=${req.session.userId || 'none'}`);
 
         if (!fileId) {
             return res.status(400).json({ status: 400, message: 'File ID is required' });
@@ -252,7 +266,7 @@ export const deleteFile = async (req, res) => {
         try {
             await fs.promises.unlink(absolutePath);
         } catch (err) {
-            console.error('Error deleting file from disk:', err);
+            logError('deleteFile', err, 'Error deleting file from disk:');
             return res.status(500).json({ status: 500, message: 'Failed to delete file from storage' });
         }
 
@@ -261,10 +275,11 @@ export const deleteFile = async (req, res) => {
         });
 
         await File.findByIdAndDelete(fileId);
+        logInfo('deleteFile', `File deleted fileId=${fileId}`);
 
         return res.status(200).json({ status: 200, message: 'File deleted successfully' });
     } catch (err) {
-        console.error('Error deleting file:', err);
+        logError('deleteFile', err, 'Error deleting file:');
         return res.status(500).json({ status: 500, message: 'Internal server error' });
     }
 };
@@ -272,9 +287,24 @@ export const deleteFile = async (req, res) => {
 export const downloadFile = async (req, res) => {
     try {
         const { fileId } = req.params;
+        logInfo('downloadFile', `Request received fileId=${fileId}, sessionUserId=${req.session.userId || 'none'}`);
 
         if (!fileId) {
             return res.status(400).json({ status: 400, message: 'File ID is required' });
+        }
+
+        const requester = req.session?.userId
+            ? await User.findById(req.session.userId).select('_id admin role').lean()
+            : null;
+        const siteSettings = await SiteSetting.findOne().lean();
+        const isDownloadsAllowed = siteSettings?.allowUserDownloads ?? DEFAULT_SITE_SETTINGS.allowUserDownloads;
+        const isAdminBypass = requester?.admin || requester?.role === 'admin';
+
+        if (!isDownloadsAllowed && !isAdminBypass) {
+            return res.status(403).json({
+                status: 403,
+                message: 'File downloads are currently disabled by the site administrator.',
+            });
         }
 
         const file = await File.findById(fileId);
@@ -292,6 +322,7 @@ export const downloadFile = async (req, res) => {
             const isOwner = file.owner.toString() === req.session.userId?.toString();
             const isSharedWith = file.shared_with.some(id => id.toString() === req.session.userId?.toString());
             if (!req.session.userId || (!isOwner && !isSharedWith)) {
+                logWarn('downloadFile', `Access denied for fileId=${fileId}`);
                 return res.status(403).json({ status: 403, message: 'Access denied' });
             }
         }
@@ -319,6 +350,7 @@ export const downloadFile = async (req, res) => {
         if (file.max_downloads && file.download_count >= file.max_downloads) {
             file.active = false;
             await file.save();
+            logInfo('downloadFile', `Maximum downloads reached for fileId=${fileId}, deactivating file`);
             return res.status(410).json({ status: 410, message: 'Maximum downloads reached' });
         }
 
@@ -337,6 +369,7 @@ export const downloadFile = async (req, res) => {
         }
         
         await file.save();
+        logInfo('downloadFile', `Download count updated fileId=${fileId}, downloadCount=${file.download_count}`);
 
         // Decrypt and pipe the file
         try {
@@ -349,26 +382,26 @@ export const downloadFile = async (req, res) => {
             readStream.pipe(decipher).pipe(res);
 
             readStream.on('error', (err) => {
-                console.error('Error reading encrypted file:', err);
+                logError('downloadFile', err, 'Error reading encrypted file:');
                 if (!res.headersSent) {
                     return res.status(500).json({ status: 500, message: 'Error downloading file' });
                 }
             });
 
             decipher.on('error', (err) => {
-                console.error('Error decrypting file:', err);
+                logError('downloadFile', err, 'Error decrypting file:');
                 if (!res.headersSent) {
                     return res.status(500).json({ status: 500, message: 'Error decrypting file' });
                 }
             });
         } catch (err) {
-            console.error('Error in file download:', err);
+            logError('downloadFile', err, 'Error in file download:');
             if (!res.headersSent) {
                 return res.status(500).json({ status: 500, message: 'Error downloading file' });
             }
         }
     } catch (err) {
-        console.error('Error in downloadFile:', err);
+        logError('downloadFile', err, 'Error in downloadFile:');
         return res.status(500).json({ status: 500, message: 'Internal server error' });
     }
 };
@@ -406,7 +439,7 @@ export const getUploadStatus = async (req, res) => {
             uploadedChunks: chunkIndices
         });
     } catch (err) {
-        console.error('Error checking upload status:', err);
+        logError('getUploadStatus', err, 'Error checking upload status:');
         return res.status(500).json({ status: 500, message: 'Internal server error' });
     }
 };
@@ -415,6 +448,7 @@ export const cancelUpload = async (req, res) => {
     try {
         const { uploadId } = req.body || {};
         const userId = req.session.userId;
+        logInfo('cancelUpload', `Request received uploadId=${uploadId}, userId=${userId || 'none'}`);
 
         if (!uploadId) {
             return res.status(400).json({ status: 400, message: 'Upload ID is required' });
@@ -432,7 +466,7 @@ export const cancelUpload = async (req, res) => {
 
         return res.status(200).json({ status: 200, message: 'Upload cancelled and temporary chunks deleted' });
     } catch (err) {
-        console.error('Error cancelling upload:', err);
+        logError('cancelUpload', err, 'Error cancelling upload:');
         return res.status(500).json({ status: 500, message: 'Internal server error' });
     }
 };
@@ -445,15 +479,28 @@ export const uploadChunk = async (req, res) => {
 
         const { uploadId, chunkIndex, totalChunks, fileName, fileSize } = req.body;
         const userId = req.session.userId;
+        logInfo('uploadChunk', `Request received uploadId=${uploadId}, chunkIndex=${chunkIndex}, totalChunks=${totalChunks}, fileName=${fileName}, userId=${userId || 'none'}`);
         const user = await User.findById(userId).select('_id current_storage max_storage role admin');
 
         if (!user) {
             await fs.promises.unlink(req.file.path).catch(() => {});
+            logWarn('uploadChunk', `User not found for uploadId=${uploadId}, userId=${userId || 'none'}`);
             return res.status(404).json({ status: 404, message: 'User not found' });
+        }
+
+        const siteSettings = await SiteSetting.findOne().lean();
+        const isUploadsAllowed = siteSettings?.allowUserUploads ?? DEFAULT_SITE_SETTINGS.allowUserUploads;
+        if (!isUploadsAllowed && !isAdminUser(user)) {
+            await fs.promises.unlink(req.file.path).catch(() => {});
+            return res.status(403).json({
+                status: 403,
+                message: 'File uploads are currently disabled by the site administrator.',
+            });
         }
 
         if (!uploadId || chunkIndex === undefined || !totalChunks || !fileName) {
             await fs.promises.unlink(req.file.path).catch(() => {});
+            logWarn('uploadChunk', 'Missing required fields for chunk upload');
             return res.status(400).json({ status: 400, message: 'Missing required fields' });
         }
 
@@ -469,6 +516,7 @@ export const uploadChunk = async (req, res) => {
             const userKey = String(userId);
             const tempDir = path.join(uploadsRoot, userKey, '.temp', String(uploadId));
             await removeUploadArtifacts(tempDir, req.file.path);
+            logWarn('uploadChunk', `File size exceeds storage limit for userId=${userId}, uploadId=${uploadId}`);
 
             return res.status(413).json({
                 status: 413,
@@ -492,7 +540,7 @@ export const uploadChunk = async (req, res) => {
                 fs.mkdirSync(tempDir, { recursive: true });
             }
         } catch (err) {
-            console.error('Error creating temp directory:', err);
+            logError('uploadChunk', err, 'Error creating temp directory:');
             await fs.promises.unlink(req.file.path).catch(() => {});
             return res.status(500).json({ status: 500, message: 'Failed to create temp directory' });
         }
@@ -501,8 +549,9 @@ export const uploadChunk = async (req, res) => {
         const chunkPath = path.join(tempDir, `chunk-${chunkIndex}`);
         try {
             await moveFileAcrossDevices(req.file.path, chunkPath);
+            logInfo('uploadChunk', `Chunk ${chunkIndex}/${totalChunks} saved for uploadId=${uploadId}`);
         } catch (err) {
-            console.error('Error saving chunk:', err);
+            logError('uploadChunk', err, 'Error saving chunk:');
             await removeUploadArtifacts(tempDir, req.file.path);
             return res.status(500).json({ status: 500, message: 'Failed to save chunk' });
         }
@@ -514,7 +563,7 @@ export const uploadChunk = async (req, res) => {
             totalChunks: parseInt(totalChunks)
         });
     } catch (err) {
-        console.error('Error uploading chunk:', err);
+        logError('uploadChunk', err, 'Error uploading chunk:');
         return res.status(500).json({ status: 500, message: 'Internal server error' });
     }
 };
@@ -544,6 +593,15 @@ export const finalizeUpload = async (req, res) => {
 
         if (!user) {
             return res.status(404).json({ status: 404, message: 'User not found' });
+        }
+
+        const siteSettings = await SiteSetting.findOne().lean();
+        const isUploadsAllowed = siteSettings?.allowUserUploads ?? DEFAULT_SITE_SETTINGS.allowUserUploads;
+        if (!isUploadsAllowed && !isAdminUser(user)) {
+            return res.status(403).json({
+                status: 403,
+                message: 'File uploads are currently disabled by the site administrator.',
+            });
         }
 
         if (!uploadId || !fileName || !totalChunks || !checksum) {
@@ -578,16 +636,21 @@ export const finalizeUpload = async (req, res) => {
         const userKey = String(userId);
         const tempDir = path.join(uploadsRoot, userKey, '.temp', uploadId);
 
+        logInfo('finalizeUpload', `Starting finalization for uploadId=${uploadId}, userId=${userId}, fileName=${safeFileName}, fileSize=${parsedFileSize}, totalChunks=${totalChunks}`);
+
         // Verify all chunks exist
         for (let i = 0; i < totalChunks; i++) {
             const chunkPath = path.join(tempDir, `chunk-${i}`);
             if (!fs.existsSync(chunkPath)) {
+                logWarn('finalizeUpload', `Missing chunk ${i} for uploadId=${uploadId}`);
                 return res.status(400).json({ 
                     status: 400, 
                     message: `Missing chunk ${i}` 
                 });
             }
         }
+
+        logInfo('finalizeUpload', `All ${totalChunks} chunks present for uploadId=${uploadId}`);
 
         // Merge chunks
         const uniqueId = Math.random().toString(36).substring(2, 15);
@@ -596,6 +659,7 @@ export const finalizeUpload = async (req, res) => {
         const finalFilePath = path.join(uploadsRoot, userKey, finalFileName);
 
         try {
+            logInfo('finalizeUpload', `Merging chunks for uploadId=${uploadId}`);
             const writeStream = fs.createWriteStream(finalFilePath);
             
             for (let i = 0; i < totalChunks; i++) {
@@ -609,6 +673,8 @@ export const finalizeUpload = async (req, res) => {
                 writeStream.on('error', reject);
             });
 
+            logInfo('finalizeUpload', `Chunks merged for uploadId=${uploadId}, file=${finalFileName}`);
+
             // checksum
             const calculatedChecksum = checksum;
 
@@ -616,16 +682,18 @@ export const finalizeUpload = async (req, res) => {
             let encryptionIv = null;
             const encryptedFilePath = `${finalFilePath}.enc`;
             try {
+                logInfo('finalizeUpload', `Encrypting merged file for uploadId=${uploadId}`);
                 encryptionIv = await encryptFile(finalFilePath, encryptedFilePath);
                 await fs.promises.unlink(finalFilePath);
+                logInfo('finalizeUpload', `Encryption complete for uploadId=${uploadId}`);
             } catch (encryptErr) {
-                console.error('Error encrypting file:', encryptErr);
+                logError('finalizeUpload', encryptErr, 'Error encrypting file:');
                 try {
                     if (fs.existsSync(encryptedFilePath)) {
                         await fs.promises.unlink(encryptedFilePath);
                     }
                 } catch (e) {
-                    console.error('Error cleaning up encrypted file:', e);
+                    logError('finalizeUpload', e, 'Error cleaning up encrypted file:');
                 }
                 throw new Error('Failed to encrypt file');
             }
@@ -637,8 +705,9 @@ export const finalizeUpload = async (req, res) => {
                     await fs.promises.unlink(path.join(tempDir, file));
                 }
                 await fs.promises.rmdir(tempDir);
+                logInfo('finalizeUpload', `Temp directory cleaned up for uploadId=${uploadId}`);
             } catch (err) {
-                console.warn('Warning: Failed to clean up temp directory:', err);
+                logWarn('finalizeUpload', `Failed to clean up temp directory: ${err.message}`);
             }
            
             // create file record
@@ -717,6 +786,9 @@ export const finalizeUpload = async (req, res) => {
                 $inc: { current_storage: fileSize }
             });
 
+            logInfo('finalizeUpload', `File record saved and storage updated for uploadId=${uploadId}, fileId=${newFile._id}`);
+            logInfo('finalizeUpload', `Finalized upload ${uploadId}`);
+
             return res.status(201).json({ 
                 status: 201, 
                 message: 'File uploaded successfully', 
@@ -732,12 +804,12 @@ export const finalizeUpload = async (req, res) => {
                     await fs.promises.unlink(encryptedFilePath);
                 }
             } catch (e) {
-                console.error('Error cleaning up failed upload:', e);
+                logError('finalizeUpload', e, 'Error cleaning up failed upload:');
             }
             throw err;
         }
     } catch (err) {
-        console.error('Error finalizing upload:', err);
+        logError('finalizeUpload', err, 'Error finalizing upload:');
         return res.status(500).json({ status: 500, message: err.message || 'Internal server error' });
     }
 };
@@ -747,16 +819,19 @@ export const voteFile = async (req, res) => {
         const { fileId } = req.params;
         const userId = req.session.userId;
         const parsedValue = Number(req.body?.value);
+        logInfo('voteFile', `Request received fileId=${fileId}, userId=${userId || 'none'}, value=${parsedValue}`);
 
         if (!fileId) {
             return res.status(400).json({ status: 400, message: 'File ID is required' });
         }
 
         if (!userId) {
+            logWarn('voteFile', 'Unauthorized vote attempt');
             return res.status(401).json({ status: 401, message: 'Unauthorized' });
         }
 
         if (![1, -1].includes(parsedValue)) {
+            logWarn('voteFile', `Invalid vote value: ${parsedValue}`);
             return res.status(400).json({ status: 400, message: 'Vote value must be 1 or -1' });
         }
 
@@ -774,6 +849,7 @@ export const voteFile = async (req, res) => {
         }
 
         if (file.owner.toString() === userId.toString()) {
+            logWarn('voteFile', `User attempted to vote on own file fileId=${fileId}`);
             return res.status(403).json({ status: 403, message: 'You cannot vote on your own file' });
         }
 
@@ -790,6 +866,7 @@ export const voteFile = async (req, res) => {
 
         const voteSummary = await getVoteSummary(fileId, userId);
 
+        logInfo('voteFile', `Vote updated for fileId=${fileId}, userId=${userId}, userVote=${voteSummary.userVote}, score=${voteSummary.score}`);
         return res.status(200).json({
             status: 200,
             message: 'Vote updated',
@@ -799,7 +876,7 @@ export const voteFile = async (req, res) => {
             },
         });
     } catch (err) {
-        console.error('Error voting file:', err);
+        logError('voteFile', err, 'Error voting file:');
         return res.status(500).json({ status: 500, message: 'Internal server error' });
     }
 };
@@ -927,7 +1004,7 @@ export const getPublicFiles = async (req, res) => {
             },
         });
     } catch (err) {
-        console.error('Error fetching public files:', err);
+        logError('getPublicFiles', err, 'Error fetching public files:');
         return res.status(500).json({ status: 500, message: 'Internal server error' });
     }
 };
@@ -937,8 +1014,10 @@ export const changeFilePassword = async (req, res) => {
         const { fileId } = req.params;
         const userId = req.session.userId;
         const { password } = req.body || {};
+        logInfo('changeFilePassword', `Request received fileId=${fileId}, userId=${userId || 'none'}`);
 
         if (!userId) {
+            logWarn('changeFilePassword', 'Authentication required');
             return res.status(401).json({ status: 401, message: 'Authentication required' });
         }
 
@@ -959,6 +1038,7 @@ export const changeFilePassword = async (req, res) => {
             // remove password protection
             file.password = null;
             await file.save();
+            logInfo('changeFilePassword', `Password removed for fileId=${fileId}`);
             return res.status(200).json({ status: 200, message: 'File password removed' });
         }
 
@@ -971,10 +1051,11 @@ export const changeFilePassword = async (req, res) => {
 
         file.password = hashedPassword;
         await file.save();
+        logInfo('changeFilePassword', `Password updated for fileId=${fileId}`);
 
         return res.status(200).json({ status: 200, message: 'File password updated' });
     } catch (err) {
-        console.error('Error changing file password:', err);
+        logError('changeFilePassword', err, 'Error changing file password:');
         return res.status(500).json({ status: 500, message: 'Internal server error' });
     }
 };
@@ -983,6 +1064,7 @@ export const updateFileMetadata = async (req, res) => {
     try {
         const { fileId } = req.params;
         const userId = req.session.userId;
+        logInfo('updateFileMetadata', `Request received fileId=${fileId}, userId=${userId || 'none'}`);
         const {
             file_name,
             description,
@@ -1028,10 +1110,12 @@ export const updateFileMetadata = async (req, res) => {
 
         const allowedVisibility = ['private', 'unlisted', 'public'];
         if (typeof visibility !== 'undefined' && !allowedVisibility.includes(visibility)) {
+            logWarn('updateFileMetadata', `Invalid visibility value: ${visibility}`);
             return res.status(400).json({ status: 400, message: 'Invalid visibility value' });
         }
 
         if (typeof sharedWithEmails !== 'undefined' && !Array.isArray(sharedWithEmails)) {
+            logWarn('updateFileMetadata', 'sharedWithEmails must be an array');
             return res.status(400).json({ status: 400, message: 'sharedWithEmails must be an array' });
         }
 
@@ -1082,6 +1166,7 @@ export const updateFileMetadata = async (req, res) => {
         }
 
         await file.save();
+        logInfo('updateFileMetadata', `File metadata updated for fileId=${fileId}`);
 
         return res.status(200).json({ status: 200, message: 'File updated', file: {
             id: file._id,

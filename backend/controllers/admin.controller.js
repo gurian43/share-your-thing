@@ -5,6 +5,13 @@ import mongoose from 'mongoose';
 import File from '../models/file.model.js';
 import Report from '../models/report.model.js';
 import User from '../models/user.model.js';
+import SiteSetting, { DEFAULT_SITE_SETTINGS } from '../models/siteSetting.model.js';
+
+const logInfo = (fn, msg) => console.log(`[${fn}] ${msg}`);
+const logWarn = (fn, msg) => console.warn(`[${fn}] ${msg}`);
+const logError = (fn, err, extra = '') => {
+    console.error(`[${fn}] ${extra}`.trim(), err);
+};
 
 const mapReport = (report) => ({
     id: report._id,
@@ -45,6 +52,79 @@ const deleteFileFromDisk = async (file) => {
     await fs.promises.unlink(absolutePath);
 };
 
+const ensureSiteSettings = async () => {
+    const existingSettings = await SiteSetting.findOne().lean();
+    if (existingSettings) {
+        return existingSettings;
+    }
+
+    return SiteSetting.create(DEFAULT_SITE_SETTINGS);
+};
+
+const mapSiteSettings = (settings = {}) => ({
+    allowUserRegistrations: settings.allowUserRegistrations ?? DEFAULT_SITE_SETTINGS.allowUserRegistrations,
+    allowUserUploads: settings.allowUserUploads ?? DEFAULT_SITE_SETTINGS.allowUserUploads,
+    allowUserDownloads: settings.allowUserDownloads ?? DEFAULT_SITE_SETTINGS.allowUserDownloads,
+});
+
+export const getSiteSettings = async (req, res) => {
+    try {
+        const settings = await ensureSiteSettings();
+
+        return res.status(200).json({
+            status: 200,
+            settings: mapSiteSettings(settings),
+        });
+    } catch (err) {
+        logError('getSiteSettings', err, 'Error loading site settings:');
+        return res.status(500).json({ status: 500, message: 'Internal server error' });
+    }
+};
+
+export const updateSiteSettings = async (req, res) => {
+    try {
+        const { allowUserRegistrations, allowUserUploads, allowUserDownloads } = req.body || {};
+
+        if (typeof allowUserRegistrations !== 'boolean' && typeof allowUserRegistrations !== 'undefined') {
+            return res.status(400).json({ status: 400, message: 'allowUserRegistrations must be a boolean' });
+        }
+
+        if (typeof allowUserUploads !== 'boolean' && typeof allowUserUploads !== 'undefined') {
+            return res.status(400).json({ status: 400, message: 'allowUserUploads must be a boolean' });
+        }
+
+        if (typeof allowUserDownloads !== 'boolean' && typeof allowUserDownloads !== 'undefined') {
+            return res.status(400).json({ status: 400, message: 'allowUserDownloads must be a boolean' });
+        }
+
+        const currentSettings = await ensureSiteSettings();
+        const updatedSettings = await SiteSetting.findByIdAndUpdate(
+            currentSettings._id,
+            {
+                allowUserRegistrations: typeof allowUserRegistrations === 'boolean'
+                    ? allowUserRegistrations
+                    : currentSettings.allowUserRegistrations,
+                allowUserUploads: typeof allowUserUploads === 'boolean'
+                    ? allowUserUploads
+                    : currentSettings.allowUserUploads,
+                allowUserDownloads: typeof allowUserDownloads === 'boolean'
+                    ? allowUserDownloads
+                    : currentSettings.allowUserDownloads,
+            },
+            { new: true, runValidators: true }
+        ).lean();
+
+        return res.status(200).json({
+            status: 200,
+            message: 'Site settings updated successfully',
+            settings: mapSiteSettings(updatedSettings),
+        });
+    } catch (err) {
+        logError('updateSiteSettings', err, 'Error updating site settings:');
+        return res.status(500).json({ status: 500, message: 'Internal server error' });
+    }
+};
+
 export const getReports = async (req, res) => {
     try {
         const reports = await Report.find()
@@ -77,8 +157,10 @@ export const updateReport = async (req, res) => {
     try {
         const { reportId } = req.params;
         const { resolved } = req.body || {};
+        logInfo('updateReport', `Request received reportId=${reportId}, resolved=${resolved}`);
 
         if (!reportId || !mongoose.Types.ObjectId.isValid(reportId)) {
+            logWarn('updateReport', `Invalid reportId=${reportId}`);
             return res.status(400).json({ status: 400, message: 'Valid report ID is required' });
         }
 
@@ -89,6 +171,7 @@ export const updateReport = async (req, res) => {
 
         report.resolved = typeof resolved === 'boolean' ? resolved : !report.resolved;
         await report.save();
+        logInfo('updateReport', `Report updated reportId=${report._id}, resolved=${report.resolved}`);
 
         return res.status(200).json({
             status: 200,
@@ -99,7 +182,7 @@ export const updateReport = async (req, res) => {
             },
         });
     } catch (err) {
-        console.error('Error updating report:', err);
+        logError('updateReport', err, 'Error updating report:');
         return res.status(500).json({ status: 500, message: 'Internal server error' });
     }
 };
@@ -107,19 +190,23 @@ export const updateReport = async (req, res) => {
 export const deleteReport = async (req, res) => {
     try {
         const { reportId } = req.params;
+        logInfo('deleteReport', `Request received reportId=${reportId}`);
 
         if (!reportId || !mongoose.Types.ObjectId.isValid(reportId)) {
+            logWarn('deleteReport', `Invalid reportId=${reportId}`);
             return res.status(400).json({ status: 400, message: 'Valid report ID is required' });
         }
 
         const deletedReport = await Report.findByIdAndDelete(reportId);
         if (!deletedReport) {
+            logWarn('deleteReport', `Report not found reportId=${reportId}`);
             return res.status(404).json({ status: 404, message: 'Report not found' });
         }
 
+        logInfo('deleteReport', `Report deleted reportId=${reportId}`);
         return res.status(200).json({ status: 200, message: 'Report deleted successfully' });
     } catch (err) {
-        console.error('Error deleting report:', err);
+        logError('deleteReport', err, 'Error deleting report:');
         return res.status(500).json({ status: 500, message: 'Internal server error' });
     }
 };
@@ -127,8 +214,10 @@ export const deleteReport = async (req, res) => {
 export const deleteFileAsAdmin = async (req, res) => {
     try {
         const { fileId } = req.params;
+        logInfo('deleteFileAsAdmin', `Request received fileId=${fileId}`);
 
         if (!fileId || !mongoose.Types.ObjectId.isValid(fileId)) {
+            logWarn('deleteFileAsAdmin', `Invalid fileId=${fileId}`);
             return res.status(400).json({ status: 400, message: 'Valid file ID is required' });
         }
 
@@ -140,7 +229,7 @@ export const deleteFileAsAdmin = async (req, res) => {
         try {
             await deleteFileFromDisk(file);
         } catch (err) {
-            console.error('Error deleting file from disk:', err);
+            logError('deleteFileAsAdmin', err, 'Error deleting file from disk:');
             return res.status(500).json({ status: 500, message: 'Failed to delete file from storage' });
         }
 
@@ -152,6 +241,7 @@ export const deleteFileAsAdmin = async (req, res) => {
 
         await Report.deleteMany({ file_id: file._id });
         await File.findByIdAndDelete(fileId);
+        logInfo('deleteFileAsAdmin', `File deleted as admin fileId=${fileId}`);
 
         return res.status(200).json({ status: 200, message: 'File deleted successfully' });
     } catch (err) {

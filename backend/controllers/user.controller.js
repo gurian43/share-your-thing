@@ -3,10 +3,17 @@ import Activation from '../models/activation.model.js';
 import File from '../models/file.model.js';
 import Vote from '../models/vote.model.js';
 import Pwdreset from '../models/pwdreset.model.js';
+import SiteSetting, { DEFAULT_SITE_SETTINGS } from '../models/siteSetting.model.js';
 import Bcrypt from 'bcrypt';
 import crypto from 'crypto';
 import { verifyCaptcha } from '../services/turnstile.js';
 import { sendResetEmail as sendPasswordResetEmail, sendTokenEmail } from '../services/emailService.js'
+
+const logInfo = (fn, msg) => console.log(`[${fn}] ${msg}`);
+const logWarn = (fn, msg) => console.warn(`[${fn}] ${msg}`);
+const logError = (fn, err, extra = '') => {
+    console.error(`[${fn}] ${extra}`.trim(), err);
+};
 
 const hashToken = (token) => crypto.createHash('sha256').update(token).digest('hex');
 const APP_ENV = process.env.NODE_ENV || process.env.MODE || process.env.mode || 'development';
@@ -40,6 +47,20 @@ export const registerUser = async (req, res) => {
     try {
         if(!req.body.password || !req.body.email || !req.body.username) {
             return res.status(400).json({ status: 400, message: 'Missing required fields' });
+        }
+
+        const siteSettings = await SiteSetting.findOne().lean();
+        const isRegistrationAllowed = siteSettings?.allowUserRegistrations ?? DEFAULT_SITE_SETTINGS.allowUserRegistrations;
+        const requester = req.session?.userId
+            ? await User.findById(req.session.userId).select('_id admin role').lean()
+            : null;
+        const isAdminBypass = requester?.admin || requester?.role === 'admin';
+
+        if (!isRegistrationAllowed && !isAdminBypass) {
+            return res.status(403).json({
+                status: 403,
+                message: 'New user registrations are currently disabled by the site administrator.',
+            });
         }
 
         if(APP_ENV !== "development") {
@@ -94,6 +115,7 @@ export const registerUser = async (req, res) => {
         });
 
         await newUser.save();
+        logInfo('registerUser', `User registered userId=${newUser._id}, email=${newUser.email}`);
 
         const rawActivationToken = crypto.randomBytes(16).toString('hex');
         const newActivation = new Activation({
@@ -186,9 +208,13 @@ export const logoutUser = (req, res) => {
 
 export const activateUser = async (req, res) => {
     try {
+        logInfo('activateUser', `Attempting activation token=${req.params.token}`);
 
         const activationToken = req.params.token;
-        if (!activationToken) return res.status(400).json({ status: 400, message: 'Missing activation token' });
+        if (!activationToken) {
+            logWarn('activateUser', 'Missing activation token');
+            return res.status(400).json({ status: 400, message: 'Missing activation token' });
+        }
 
         const activationRecord = await Activation.findOne({ activation_token_hash: hashToken(activationToken) });
         if (!activationRecord) {
@@ -203,10 +229,11 @@ export const activateUser = async (req, res) => {
         user.active = true;
         await user.save();
         await Activation.deleteOne({ _id: activationRecord._id });
+        logInfo('activateUser', `Account activated userId=${user._id}`);
 
         return res.json({ status: 200, message: 'Account activated' });
     } catch (err) {
-        console.error(err);
+        logError('activateUser', err, 'Error activating user:');
         return res.status(500).json({ status: 500, message: 'Server error' });
     }
 };
@@ -214,8 +241,10 @@ export const activateUser = async (req, res) => {
 export const resendActivation = async (req, res) => {
     try {
         const { email } = req.body;
+        logInfo('resendActivation', `Request received email=${email}`);
 
         if (!email) {
+            logWarn('resendActivation', 'Missing email');
             return res.status(400).json({ status: 400, message: 'Missing email' });
         }
 
@@ -238,9 +267,10 @@ export const resendActivation = async (req, res) => {
         await newActivation.save();
 
         await sendTokenEmail(user.email, rawActivationToken);
+        logInfo('resendActivation', `Activation token resent userId=${user._id}, email=${user.email}`);
         return res.json({ status: 200, message: 'If an account exists, a new activation link has been sent.' });
     } catch (err) {
-        console.error(err);
+        logError('resendActivation', err, 'Error resending activation token:');
         return res.status(500).json({ status: 500, message: 'Server error' });
     }
 };
@@ -260,18 +290,21 @@ export const getUser = async (req, res) => {
 
 export const deleteUser = async (req, res) => {
     try {
+        logInfo('deleteUser', `Deleting account userId=${req.session.userId}`);
         await File.deleteMany({ owner: req.session.userId });
         await User.findByIdAndDelete(req.session.userId);
         
         req.session.destroy(err => {
             if (err) {
+                logError('deleteUser', err, 'Error destroying session after account deletion:');
                 return res.status(500).json({ status: 500, message: 'Account deleted but logout failed' });
             }
             res.clearCookie('connect.sid');
+            logInfo('deleteUser', `Account deleted successfully userId=${req.session.userId}`);
             return res.json({ status: 200, message: 'Account deleted successfully' });
         });
     } catch (err) {
-        console.error(err);
+        logError('deleteUser', err, 'Error deleting user account:');
         return res.status(500).json({ status: 500, message: 'Server error' });
     }
 }
@@ -333,6 +366,7 @@ export const updateProfile = async (req, res) => {
         const userId = req.session.userId;
         const avatarUrl = String(req.body?.avatar_url ?? '').trim();
         const bio = String(req.body?.bio ?? '').trim();
+        logInfo('updateProfile', `Updating profile userId=${userId}`);
 
         if (avatarUrl.length > 2048) {
             return res.status(400).json({ status: 400, message: 'Avatar URL must be 2048 characters or less' });
@@ -355,6 +389,7 @@ export const updateProfile = async (req, res) => {
         user.profile.bio = bio;
 
         await user.save();
+        logInfo('updateProfile', `Profile updated successfully userId=${userId}`);
 
         return res.status(200).json({
             status: 200,
@@ -365,13 +400,14 @@ export const updateProfile = async (req, res) => {
             },
         });
     } catch (err) {
-        console.error(err);
+        logError('updateProfile', err, 'Error updating profile:');
         return res.status(500).json({ status: 500, message: 'Server error' });
     }
 };
 
 export const recalculateStorageUsage = async (req, res) => {
     const userId = req.session.userId;
+    logInfo('recalculateStorageUsage', `Recalculating storage for userId=${userId}`);
 
     try {
         const totalStorage = await File.aggregate([
@@ -381,9 +417,10 @@ export const recalculateStorageUsage = async (req, res) => {
         const newStorageUsage = totalStorage.length > 0 ? totalStorage[0].totalSize : 0;
 
         await User.findByIdAndUpdate(userId, { current_storage: newStorageUsage });
+        logInfo('recalculateStorageUsage', `Storage usage updated userId=${userId}, current_storage=${newStorageUsage}`);
         return res.status(200).json({ status: 200, message: 'Storage usage recalculated', current_storage: newStorageUsage });
     } catch (err) {
-        console.error('Error recalculating storage usage for user', userId, err);
+        logError('recalculateStorageUsage', err, `Error recalculating storage usage for user ${userId}`);
         return res.status(500).json({ status: 500, message: 'Server error' });
     }
 };
@@ -391,8 +428,10 @@ export const recalculateStorageUsage = async (req, res) => {
 export const sendResetEmail = async (req, res) => {
     try {
         const { email } = req.body;
+        logInfo('sendResetEmail', `Request received email=${email}`);
 
         if (!email) {
+            logWarn('sendResetEmail', 'Missing email');
             return res.status(400).json({ status: 400, message: 'Missing email' });
         }
 
@@ -410,9 +449,10 @@ export const sendResetEmail = async (req, res) => {
         });
         await newPwdreset.save();
         await sendPasswordResetEmail(user.email, rawResetToken);
+        logInfo('sendResetEmail', `Password reset token created userId=${user._id}`);
         return res.json({ status: 200, message: 'If an account exists, a password reset link has been sent.' });
     } catch (err) {
-        console.error(err);
+        logError('sendResetEmail', err, 'Error sending password reset email:');
         return res.status(500).json({ status: 500, message: 'Server error' });
     }
 };
@@ -420,24 +460,29 @@ export const sendResetEmail = async (req, res) => {
 export const resetPassword = async (req, res) => {
     try {
         const resetToken = req.params.token || req.body.token;
+        logInfo('resetPassword', `Request received token=${resetToken ? 'present' : 'missing'}`);
 
         const { newPassword } = req.body;
         if (!resetToken || !newPassword) {
+            logWarn('resetPassword', 'Missing token or new password');
             return res.status(400).json({ status: 400, message: 'Missing token or new password' });
         }
 
         const pwdresetRecord = await Pwdreset.findOne({ reset_token_hash: hashToken(resetToken) });
         if (!pwdresetRecord) {
+            logWarn('resetPassword', 'Invalid or expired reset token');
             return res.status(400).json({ status: 400, message: 'Invalid or expired reset token' });
         }
 
         const user = await User.findById(pwdresetRecord.user_id);
         if (!user) {
+            logWarn('resetPassword', `User not found for reset token`);
             return res.status(404).json({ status: 404, message: 'User not found' });
         }
 
         const passwordValidation = verifyPasswordStrength(newPassword);
         if (!passwordValidation.valid) {
+            logWarn('resetPassword', `Password validation failed`);
             return res.status(400).json({ status: 400, message: passwordValidation.message });
         }
 
@@ -448,10 +493,11 @@ export const resetPassword = async (req, res) => {
         await user.save();
         await invalidateUserSessions(user._id);
         await Pwdreset.deleteOne({ _id: pwdresetRecord._id });
+        logInfo('resetPassword', `Password reset successful userId=${user._id}`);
 
         return res.json({ status: 200, message: 'Password reset successful' });
     } catch (err) {
-        console.error(err);
+        logError('resetPassword', err, 'Error resetting password:');
         return res.status(500).json({ status: 500, message: 'Server error' });
     }
 };
@@ -479,28 +525,34 @@ export const validateResetToken = async (req, res) => {
 export const changePassword = async (req, res) => {
     try {
         const { currentPassword, newPassword } = req.body;
+        logInfo('changePassword', `Request received userId=${req.session.userId}`);
 
         if (!currentPassword || !newPassword) {
+            logWarn('changePassword', 'Missing current or new password');
             return res.status(400).json({ status: 400, message: 'Missing current or new password' });
         }
 
         const user = await User.findById(req.session.userId);
         if (!user) {
+            logWarn('changePassword', `User not found userId=${req.session.userId}`);
             return res.status(404).json({ status: 404, message: 'User not found' });
         }
 
         const isCurrentPasswordValid = await Bcrypt.compare(currentPassword, user.passwordHash);
         if (!isCurrentPasswordValid) {
+            logWarn('changePassword', `Incorrect current password for userId=${user._id}`);
             return res.status(400).json({ status: 400, message: 'Current password is incorrect' });
         }
 
         const passwordValidation = verifyPasswordStrength(newPassword);
         if (!passwordValidation.valid) {
+            logWarn('changePassword', `Password validation failed for userId=${user._id}`);
             return res.status(400).json({ status: 400, message: passwordValidation.message });
         }
 
         const isSamePassword = await Bcrypt.compare(newPassword, user.passwordHash);
         if (isSamePassword) {
+            logWarn('changePassword', `New password matches current password for userId=${user._id}`);
             return res.status(400).json({ status: 400, message: 'New password must be different from current password' });
         }
 
@@ -511,10 +563,11 @@ export const changePassword = async (req, res) => {
         await user.save();
         await invalidateUserSessions(user._id, req.sessionID);
         await Pwdreset.deleteMany({ user_id: user._id });
+        logInfo('changePassword', `Password changed successfully userId=${user._id}`);
 
         return res.json({ status: 200, message: 'Password changed successfully' });
     } catch (err) {
-        console.error(err);
+        logError('changePassword', err, 'Error changing password:');
         return res.status(500).json({ status: 500, message: 'Server error' });
     }
 };

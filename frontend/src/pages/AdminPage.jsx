@@ -1,5 +1,5 @@
 import { useEffect, useMemo, useState } from 'react'
-import { Badge, Box, Button, Container, Heading, HStack, Input, Separator, Spinner, Stack, Text, VStack } from '@chakra-ui/react'
+import { Badge, Box, Button, Checkbox, Container, Heading, HStack, Input, Separator, Spinner, Stack, Text, VStack } from '@chakra-ui/react'
 
 import Header from '../components/Header'
 import Footer from '../components/Footer'
@@ -29,6 +29,44 @@ const AdminPage = () => {
   const [filter, setFilter] = useState('open')
   const [manualFileId, setManualFileId] = useState('')
   const [manualDeleting, setManualDeleting] = useState(false)
+  const [siteSettings, setSiteSettings] = useState({
+    allowUserRegistrations: true,
+    allowUserUploads: true,
+    allowUserDownloads: true,
+  })
+  const [settingsLoading, setSettingsLoading] = useState(true)
+  const [savingSettings, setSavingSettings] = useState(false)
+
+  const loadSettings = async () => {
+    setSettingsLoading(true)
+
+    try {
+      const response = await fetch('/api/admin/site-settings', {
+        method: 'GET',
+        credentials: 'include',
+      })
+
+      const data = await response.json().catch(() => ({}))
+
+      if (!response.ok) {
+        throw new Error(data.message || 'Failed to load site settings')
+      }
+
+      setSiteSettings({
+        allowUserRegistrations: Boolean(data.settings?.allowUserRegistrations ?? true),
+        allowUserUploads: Boolean(data.settings?.allowUserUploads ?? true),
+        allowUserDownloads: Boolean(data.settings?.allowUserDownloads ?? true),
+      })
+    } catch (err) {
+      toaster.create({
+        title: err.message || 'Failed to load site settings',
+        type: 'error',
+        duration: 4000,
+      })
+    } finally {
+      setSettingsLoading(false)
+    }
+  }
 
   const loadReports = async () => {
     setLoading(true)
@@ -58,6 +96,7 @@ const AdminPage = () => {
   useEffect(() => {
     document.title = 'Admin Dashboard - Share Your Thing'
     loadReports()
+    loadSettings()
   }, [])
 
   const visibleReports = useMemo(() => {
@@ -114,6 +153,39 @@ const AdminPage = () => {
 
     await request
     setReports((prev) => prev.filter((report) => report.id !== reportId))
+  }
+
+  const updateSiteSetting = async (key, value) => {
+    setSavingSettings(true)
+
+    const request = fetch('/api/admin/site-settings', {
+      method: 'PATCH',
+      headers: { 'Content-Type': 'application/json' },
+      credentials: 'include',
+      body: JSON.stringify({ [key]: value }),
+    }).then(async (response) => {
+      const data = await response.json().catch(() => ({}))
+      if (!response.ok) {
+        throw new Error(data.message || 'Failed to update site settings')
+      }
+      return data
+    })
+
+    toaster.promise(request, {
+      loading: { title: 'Saving site settings...' },
+      success: { title: 'Site settings updated' },
+      error: { title: 'Failed to update settings' },
+    })
+
+    try {
+      const data = await request
+      setSiteSettings((prev) => ({
+        ...prev,
+        [key]: Boolean(data.settings?.[key] ?? value),
+      }))
+    } finally {
+      setSavingSettings(false)
+    }
   }
 
   const deleteFile = async (fileId, fileName = '') => {
@@ -189,6 +261,97 @@ const AdminPage = () => {
               Total: {reports.length}
             </Badge>
           </HStack>
+
+          <Box bg="gray.800" border="1px solid" borderColor="gray.700" borderRadius="xl" p={5}>
+            <VStack align="stretch" spacing={4}>
+              <Box>
+                <Heading size="md" color="white">
+                  Site-wide access controls
+                </Heading>
+                <Text fontSize="sm" color="gray.400" mt={1}>
+                  Turn user registrations, uploads, and downloads on or off across the whole site. Admin accounts remain exempt.
+                </Text>
+              </Box>
+
+              {settingsLoading ? (
+                <Box py={2}>
+                  <Spinner size="sm" color="purple.400" />
+                </Box>
+              ) : (
+                <Stack spacing={4}>
+                  <HStack justify="space-between" align="center">
+                    <VStack align="flex-start" spacing={1}>
+                      <Text color="white" fontWeight="bold">
+                        User registrations
+                      </Text>
+                      <Text color="gray.400" fontSize="sm">
+                        Allow new users to create accounts.
+                      </Text>
+                    </VStack>
+                    <Checkbox.Root
+                      colorPalette="purple"
+                      checked={siteSettings.allowUserRegistrations}
+                      disabled={savingSettings}
+                      onCheckedChange={(details) => updateSiteSetting('allowUserRegistrations', details.checked)}
+                    >
+                      <Checkbox.HiddenInput />
+                      <Checkbox.Control>
+                        <Checkbox.Indicator />
+                      </Checkbox.Control>
+                    </Checkbox.Root>
+                  </HStack>
+
+                  <Separator borderColor="gray.700" />
+
+                  <HStack justify="space-between" align="center">
+                    <VStack align="flex-start" spacing={1}>
+                      <Text color="white" fontWeight="bold">
+                        User uploads
+                      </Text>
+                      <Text color="gray.400" fontSize="sm">
+                        Allow non-admin users to upload files.
+                      </Text>
+                    </VStack>
+                    <Checkbox.Root
+                      colorPalette="purple"
+                      checked={siteSettings.allowUserUploads}
+                      disabled={savingSettings}
+                      onCheckedChange={(details) => updateSiteSetting('allowUserUploads', details.checked)}
+                    >
+                      <Checkbox.HiddenInput />
+                      <Checkbox.Control>
+                        <Checkbox.Indicator />
+                      </Checkbox.Control>
+                    </Checkbox.Root>
+                  </HStack>
+
+                  <Separator borderColor="gray.700" />
+
+                  <HStack justify="space-between" align="center">
+                    <VStack align="flex-start" spacing={1}>
+                      <Text color="white" fontWeight="bold">
+                        User downloads
+                      </Text>
+                      <Text color="gray.400" fontSize="sm">
+                        Allow non-admin users to download files.
+                      </Text>
+                    </VStack>
+                    <Checkbox.Root
+                      colorPalette="purple"
+                      checked={siteSettings.allowUserDownloads}
+                      disabled={savingSettings}
+                      onCheckedChange={(details) => updateSiteSetting('allowUserDownloads', details.checked)}
+                    >
+                      <Checkbox.HiddenInput />
+                      <Checkbox.Control>
+                        <Checkbox.Indicator />
+                      </Checkbox.Control>
+                    </Checkbox.Root>
+                  </HStack>
+                </Stack>
+              )}
+            </VStack>
+          </Box>
 
           <Box bg="gray.800" border="1px solid" borderColor="gray.700" borderRadius="xl" p={5}>
             <VStack align="stretch" spacing={4}>
